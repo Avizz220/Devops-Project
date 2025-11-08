@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { STORAGE_KEYS } from '../../config';
+import { STORAGE_KEYS, API_BASE_URL } from '../../config';
 import Swal from 'sweetalert2';
 import './Settings.css';
 
@@ -31,10 +31,9 @@ const Settings = () => {
       setEditedName(parsedUser.name || '');
       setEditedEmail(parsedUser.email || '');
       
-      // Load saved profile image if exists
-      const savedImage = localStorage.getItem(`profile_image_${parsedUser.id}`);
-      if (savedImage) {
-        setProfileImage(savedImage);
+      // Load profile image from user object (from database)
+      if (parsedUser.profile_picture) {
+        setProfileImage(`${API_BASE_URL}${parsedUser.profile_picture}`);
       }
     }
   }, []);
@@ -43,7 +42,7 @@ const Settings = () => {
     fileInputRef.current?.click();
   };
 
-  const handleImageChange = (e) => {
+  const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
       // Validate file type
@@ -66,15 +65,30 @@ const Settings = () => {
         return;
       }
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const imageData = reader.result;
-        setProfileImage(imageData);
-        
-        // Save to localStorage
-        if (user?.id) {
-          localStorage.setItem(`profile_image_${user.id}`, imageData);
+      try {
+        // Upload to backend API
+        const formData = new FormData();
+        formData.append('profile_picture', file);
+
+        const response = await fetch(`${API_BASE_URL}/api/users/${user.id}/profile-picture`, {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to upload profile picture');
         }
+
+        // Update profile image display
+        const imageUrl = `${API_BASE_URL}${data.profile_picture}`;
+        setProfileImage(imageUrl);
+        
+        // Update user in localStorage with new profile_picture
+        const updatedUser = { ...user, profile_picture: data.profile_picture };
+        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
+        setUser(updatedUser);
 
         Swal.fire({
           icon: 'success',
@@ -83,13 +97,22 @@ const Settings = () => {
           timer: 2000,
           showConfirmButton: false,
         });
-      };
-      reader.readAsDataURL(file);
+
+        // Trigger a custom event to notify dashboard to refresh
+        window.dispatchEvent(new CustomEvent('profileUpdated', { detail: updatedUser }));
+      } catch (error) {
+        console.error('Error uploading profile picture:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Upload Failed',
+          text: error.message || 'Failed to upload profile picture. Please try again.',
+        });
+      }
     }
   };
 
-  const handleRemoveImage = () => {
-    Swal.fire({
+  const handleRemoveImage = async () => {
+    const result = await Swal.fire({
       title: 'Remove Profile Picture?',
       text: 'Are you sure you want to remove your profile picture?',
       icon: 'warning',
@@ -97,12 +120,27 @@ const Settings = () => {
       confirmButtonColor: '#d33',
       cancelButtonColor: '#6c757d',
       confirmButtonText: 'Yes, remove it',
-    }).then((result) => {
-      if (result.isConfirmed) {
-        setProfileImage(null);
-        if (user?.id) {
-          localStorage.removeItem(`profile_image_${user.id}`);
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/users/${user.id}/profile-picture`, {
+          method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to remove profile picture');
         }
+
+        setProfileImage(null);
+        
+        // Update user in localStorage
+        const updatedUser = { ...user, profile_picture: null };
+        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
+        setUser(updatedUser);
+
         Swal.fire({
           icon: 'success',
           title: 'Removed',
@@ -110,8 +148,18 @@ const Settings = () => {
           timer: 2000,
           showConfirmButton: false,
         });
+
+        // Trigger event to update dashboard
+        window.dispatchEvent(new CustomEvent('profileUpdated', { detail: updatedUser }));
+      } catch (error) {
+        console.error('Error removing profile picture:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: error.message || 'Failed to remove profile picture. Please try again.',
+        });
       }
-    });
+    }
   };
 
   const handlePasswordReset = async (e) => {
@@ -146,24 +194,27 @@ const Settings = () => {
     }
 
     try {
-      // TODO: Call backend API to reset password
-      // const response = await fetch('http://localhost:4000/api/auth/reset-password', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ 
-      //     userId: user.id,
-      //     currentPassword, 
-      //     newPassword 
-      //   })
-      // });
+      // Call backend API to reset password
+      const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000';
+      const response = await fetch(`${API_BASE}/api/auth/reset-password`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          currentPassword,
+          newPassword
+        })
+      });
 
-      // Simulate API call for now
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update password');
+      }
 
       Swal.fire({
         icon: 'success',
         title: 'Password Updated',
-        text: 'Your password has been changed successfully!',
+        text: data.message || 'Your password has been changed successfully!',
         timer: 2000,
         showConfirmButton: false,
       });
@@ -181,7 +232,7 @@ const Settings = () => {
     }
   };
 
-  const handleProfileUpdate = () => {
+  const handleProfileUpdate = async () => {
     if (!editedName.trim() || !editedEmail.trim()) {
       Swal.fire({
         icon: 'error',
@@ -202,23 +253,47 @@ const Settings = () => {
       return;
     }
 
-    const updatedUser = {
-      ...user,
-      name: editedName,
-      email: editedEmail,
-    };
+    try {
+      // Call backend API to update profile
+      const response = await fetch(`${API_BASE_URL}/api/users/${user.id}/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editedName,
+          email: editedEmail
+        })
+      });
 
-    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
-    setUser(updatedUser);
-    setIsEditingProfile(false);
+      const data = await response.json();
 
-    Swal.fire({
-      icon: 'success',
-      title: 'Profile Updated',
-      text: 'Your profile has been updated successfully!',
-      timer: 2000,
-      showConfirmButton: false,
-    });
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update profile');
+      }
+
+      // Update user in localStorage with updated data from server
+      const updatedUser = data.user;
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
+      setUser(updatedUser);
+      setIsEditingProfile(false);
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Profile Updated',
+        text: 'Your profile has been updated successfully!',
+        timer: 2000,
+        showConfirmButton: false,
+      });
+
+      // Trigger event to update dashboard
+      window.dispatchEvent(new CustomEvent('profileUpdated', { detail: updatedUser }));
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Update Failed',
+        text: error.message || 'Failed to update profile. Please try again.',
+      });
+    }
   };
 
   const cancelProfileEdit = () => {

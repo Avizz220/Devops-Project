@@ -15,6 +15,8 @@ const Dashboard = () => {
   const [user, setUser] = useState(null);
   const [activeMenu, setActiveMenu] = useState('overview');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [upcomingEvents, setUpcomingEvents] = useState([]);
+  const [categoryData, setCategoryData] = useState([]);
   
   // Form states
   const [eventName, setEventName] = useState('');
@@ -52,40 +54,6 @@ const Dashboard = () => {
     { month: 'Sep', value: 370 }
   ];
 
-  const categoryData = [
-    { name: 'Tech', value: 45 },
-    { name: 'Music', value: 32 },
-    { name: 'Art', value: 28 },
-    { name: 'Food', value: 20 }
-  ];
-
-  const upcomingEvents = [
-    { 
-      id: 1, 
-      title: 'Tech Innovation Summit 2025', 
-      date: 'Oct 15, 2025',
-      location: 'San Francisco Convention Center',
-      type: 'tech',
-      image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=300&fit=crop'
-    },
-    { 
-      id: 2, 
-      title: 'Summer Music Festival', 
-      date: 'Jul 20, 2025',
-      location: 'Golden Gate Park',
-      type: 'music',
-      image: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=400&h=300&fit=crop'
-    },
-    { 
-      id: 3, 
-      title: 'Modern Art Exhibition', 
-      date: 'Nov 5, 2025',
-      location: 'Museum of Modern Art',
-      type: 'art',
-      image: 'https://images.unsplash.com/photo-1531243269054-5ebf6f34081e?w=400&h=300&fit=crop'
-    }
-  ];
-
   const recentActivity = [
     { 
       id: 1, 
@@ -116,7 +84,99 @@ const Dashboard = () => {
         setUser({ name: 'User' });
       }
     }
+
+    // Fetch upcoming events and category data
+    fetchUpcomingEvents();
+    fetchCategoryData();
+
+    // Listen for profile updates from Settings page
+    const handleProfileUpdate = (event) => {
+      setUser(event.detail);
+    };
+
+    window.addEventListener('profileUpdated', handleProfileUpdate);
+    
+    return () => {
+      window.removeEventListener('profileUpdated', handleProfileUpdate);
+    };
   }, []);
+
+  const fetchUpcomingEvents = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/events`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch events');
+      }
+      
+      const events = await response.json();
+      
+      // Get today's date
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // Filter upcoming events (events on or after today)
+      const upcoming = events.filter(event => {
+        const eventDate = new Date(event.event_date);
+        eventDate.setHours(0, 0, 0, 0);
+        return eventDate >= today;
+      });
+      
+      // Sort by date (closest first)
+      upcoming.sort((a, b) => {
+        const dateA = new Date(a.event_date);
+        const dateB = new Date(b.event_date);
+        return dateA - dateB;
+      });
+      
+      // Take only the first 3 closest events
+      setUpcomingEvents(upcoming.slice(0, 3));
+    } catch (error) {
+      console.error('Error fetching upcoming events:', error);
+      setUpcomingEvents([]);
+    }
+  };
+
+  const fetchCategoryData = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/events`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch events');
+      }
+      
+      const events = await response.json();
+      
+      // Count events by category
+      const categoryCounts = {};
+      events.forEach(event => {
+        const category = event.event_category;
+        if (category) {
+          // Capitalize first letter for display
+          const displayName = category.charAt(0).toUpperCase() + category.slice(1);
+          categoryCounts[displayName] = (categoryCounts[displayName] || 0) + 1;
+        }
+      });
+      
+      // Convert to array format and sort by count (descending)
+      const categoryArray = Object.entries(categoryCounts)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 4); // Take top 4 categories
+      
+      setCategoryData(categoryArray);
+    } catch (error) {
+      console.error('Error fetching category data:', error);
+      setCategoryData([]);
+    }
+  };
+
+  const formatEventDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+  };
 
   const handleLogout = () => {
     logout();
@@ -179,6 +239,9 @@ const Dashboard = () => {
         });
         resetForm();
         setShowCreateModal(false);
+        // Refresh upcoming events and category data
+        fetchUpcomingEvents();
+        fetchCategoryData();
       } else {
         throw new Error(data.error || 'Failed to create event');
       }
@@ -195,7 +258,7 @@ const Dashboard = () => {
   };
 
   const maxRevenue = Math.max(...revenueData.map(d => d.value));
-  const maxCategory = Math.max(...categoryData.map(d => d.value));
+  const maxCategory = categoryData.length > 0 ? Math.max(...categoryData.map(d => d.value)) : 1;
 
   return (
     <div className="dashboard-container">
@@ -209,7 +272,15 @@ const Dashboard = () => {
         {/* Welcome User Section */}
         <div className="sidebar-user-welcome">
           <div className="welcome-avatar">
-            {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+            {user?.profile_picture ? (
+              <img 
+                src={`${API_BASE_URL}${user.profile_picture}`} 
+                alt={user.name}
+                className="welcome-avatar-img"
+              />
+            ) : (
+              user?.name ? user.name.charAt(0).toUpperCase() : 'U'
+            )}
           </div>
           <div className="welcome-text">
             <h3>Welcome back!</h3>
@@ -372,21 +443,27 @@ const Dashboard = () => {
                 </div>
                 <div className="chart-container">
                   <div className="bar-chart">
-                    {categoryData.map((item, index) => (
-                      <div key={index} className="bar-row">
-                        <span className="bar-label">{item.name}</span>
-                        <div className="bar-track">
-                          <div 
-                            className="bar-fill"
-                            style={{ 
-                              width: `${(item.value / maxCategory) * 100}%`,
-                              animationDelay: `${index * 0.15}s`
-                            }}
-                          />
-                        </div>
-                        <span className="bar-value">{item.value}</span>
+                    {categoryData.length === 0 ? (
+                      <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>
+                        No events to display
                       </div>
-                    ))}
+                    ) : (
+                      categoryData.map((item, index) => (
+                        <div key={index} className="bar-row">
+                          <span className="bar-label">{item.name}</span>
+                          <div className="bar-track">
+                            <div 
+                              className="bar-fill"
+                              style={{ 
+                                width: `${(item.value / maxCategory) * 100}%`,
+                                animationDelay: `${index * 0.15}s`
+                              }}
+                            />
+                          </div>
+                          <span className="bar-value">{item.value}</span>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>
@@ -400,25 +477,31 @@ const Dashboard = () => {
                   <button className="link-btn" onClick={() => setActiveMenu('browse')}>View All</button>
                 </div>
                 <div className="events-list-new">
-                  {upcomingEvents.map((event, index) => (
-                    <div 
-                      key={event.id} 
-                      className="event-card-new"
-                      style={{ animationDelay: `${index * 0.1}s` }}
-                    >
-                      <div className="event-image">
-                        <img src={event.image} alt={event.title} />
-                        <span className={`event-badge badge-${event.type}`}>{event.type}</span>
-                      </div>
-                      <div className="event-details">
-                        <h4>{event.title}</h4>
-                        <div className="event-date-loc">
-                          <span className="event-date-icon">📅 {event.date}</span>
-                          <span className="event-loc-icon">📍 {event.location}</span>
+                  {upcomingEvents.length === 0 ? (
+                    <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>
+                      No upcoming events
+                    </div>
+                  ) : (
+                    upcomingEvents.map((event, index) => (
+                      <div 
+                        key={event.id} 
+                        className="event-card-new"
+                        style={{ animationDelay: `${index * 0.1}s` }}
+                      >
+                        <div className="event-image">
+                          <img src={`${API_BASE_URL}${event.photo_url}`} alt={event.event_name} />
+                          <span className={`event-badge badge-${event.event_category}`}>{event.event_category}</span>
+                        </div>
+                        <div className="event-details">
+                          <h4>{event.event_name}</h4>
+                          <div className="event-date-loc">
+                            <span className="event-date-icon">📅 {formatEventDate(event.event_date)}</span>
+                            <span className="event-loc-icon">📍 {event.location}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
 
