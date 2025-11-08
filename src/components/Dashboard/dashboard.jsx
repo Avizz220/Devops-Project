@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './dashboard.css';
-import { STORAGE_KEYS } from '../../config';
+import { STORAGE_KEYS, API_BASE_URL } from '../../config';
 import BrowseEvents from './BrowseEvents';
 import Settings from './Settings';
 import EventDetails from './EventDetails';
 import AttendeeInsights from './AttendeeInsights';
 import { useAuth } from '../../App';
+import Swal from 'sweetalert2';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -14,6 +15,17 @@ const Dashboard = () => {
   const [user, setUser] = useState(null);
   const [activeMenu, setActiveMenu] = useState('overview');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  
+  // Form states
+  const [eventName, setEventName] = useState('');
+  const [eventCategory, setEventCategory] = useState('tech');
+  const [eventDate, setEventDate] = useState('');
+  const [eventTime, setEventTime] = useState('');
+  const [location, setLocation] = useState('');
+  const [ticketPrice, setTicketPrice] = useState('');
+  const [capacity, setCapacity] = useState('');
+  const [eventPhoto, setEventPhoto] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Stats data
   const stats = {
@@ -109,6 +121,77 @@ const Dashboard = () => {
   const handleLogout = () => {
     logout();
     navigate('/login', { replace: true });
+  };
+
+  const resetForm = () => {
+    setEventName('');
+    setEventCategory('tech');
+    setEventDate('');
+    setEventTime('');
+    setLocation('');
+    setTicketPrice('');
+    setCapacity('');
+    setEventPhoto(null);
+  };
+
+  const handleCreateEvent = async (e) => {
+    e.preventDefault();
+    
+    if (!user?.id) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'User not logged in'
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('event_name', eventName);
+      formData.append('event_category', eventCategory);
+      formData.append('event_date', eventDate);
+      formData.append('event_time', eventTime);
+      formData.append('location', location);
+      formData.append('ticket_price', ticketPrice);
+      formData.append('capacity', capacity);
+      formData.append('organizer_id', user.id);
+      if (eventPhoto) {
+        formData.append('photo', eventPhoto);
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/events`, {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        Swal.fire({
+          icon: 'success',
+          title: 'Event Created!',
+          text: 'Your event has been created successfully.',
+          timer: 2000,
+          showConfirmButton: false
+        });
+        resetForm();
+        setShowCreateModal(false);
+      } else {
+        throw new Error(data.error || 'Failed to create event');
+      }
+    } catch (error) {
+      console.error('Error creating event:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: error.message || 'Failed to create event. Please try again.'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const maxRevenue = Math.max(...revenueData.map(d => d.value));
@@ -383,33 +466,113 @@ const Dashboard = () => {
         <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Create New Event</h2>
+              <h2>📅 Create New Event</h2>
               <button className="modal-close" onClick={() => setShowCreateModal(false)}>×</button>
             </div>
-            <form className="modal-form">
+            <form className="modal-form" onSubmit={handleCreateEvent}>
               <div className="form-group">
-                <label>Event Title</label>
-                <input type="text" placeholder="Enter event title" />
+                <label>Event Name *</label>
+                <input 
+                  type="text" 
+                  placeholder="Enter event name" 
+                  value={eventName}
+                  onChange={(e) => setEventName(e.target.value)}
+                  required 
+                />
               </div>
+
               <div className="form-group">
-                <label>Event Type</label>
-                <select>
-                  <option>Conference</option>
-                  <option>Concert</option>
-                  <option>Workshop</option>
-                  <option>Meetup</option>
+                <label>Event Category *</label>
+                <select 
+                  value={eventCategory}
+                  onChange={(e) => setEventCategory(e.target.value)}
+                  required
+                >
+                  <option value="tech">Tech</option>
+                  <option value="food">Food</option>
+                  <option value="music">Music</option>
+                  <option value="political">Political</option>
+                  <option value="art">Art</option>
+                  <option value="sports">Sports</option>
+                  <option value="other">Other</option>
                 </select>
               </div>
-              <div className="form-group">
-                <label>Date</label>
-                <input type="date" />
+              
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Date *</label>
+                  <input 
+                    type="date" 
+                    value={eventDate}
+                    onChange={(e) => setEventDate(e.target.value)}
+                    required 
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Time *</label>
+                  <input 
+                    type="time" 
+                    value={eventTime}
+                    onChange={(e) => setEventTime(e.target.value)}
+                    required 
+                  />
+                </div>
               </div>
+
+              <div className="form-group">
+                <label>Location *</label>
+                <input 
+                  type="text" 
+                  placeholder="Enter event location" 
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  required 
+                />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Ticket Price ($) *</label>
+                  <input 
+                    type="number" 
+                    placeholder="0.00" 
+                    min="0" 
+                    step="0.01" 
+                    value={ticketPrice}
+                    onChange={(e) => setTicketPrice(e.target.value)}
+                    required 
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Capacity *</label>
+                  <input 
+                    type="number" 
+                    placeholder="Enter max capacity" 
+                    min="1" 
+                    value={capacity}
+                    onChange={(e) => setCapacity(e.target.value)}
+                    required 
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Event Photo *</label>
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={(e) => setEventPhoto(e.target.files[0])}
+                  required 
+                />
+                <small className="form-hint">Upload an image (JPG, PNG, GIF - Max 5MB)</small>
+              </div>
+
               <div className="form-actions">
                 <button type="button" className="btn-cancel" onClick={() => setShowCreateModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="btn-submit">
-                  Create Event
+                <button type="submit" className="btn-submit" disabled={isSubmitting}>
+                  {isSubmitting ? 'Creating...' : 'Create Event'}
                 </button>
               </div>
             </form>

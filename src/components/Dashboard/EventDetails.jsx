@@ -1,26 +1,111 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './EventDetails.css';
+import { API_BASE_URL, STORAGE_KEYS } from '../../config';
+import Swal from 'sweetalert2';
 
 const EventDetails = () => {
   const [activeTab, setActiveTab] = useState('analytics');
+  const [myEvents, setMyEvents] = useState([]);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Sample event data
-  const event = {
-    title: 'Tech Innovation Summit 2025',
-    description: 'Join industry leaders discussing the future of technology and innovation.',
-    category: 'tech',
-    date: 'Wednesday, October 15, 2025',
-    time: '09:00',
-    location: 'San Francisco Convention Center',
-    price: '$299',
-    capacity: 1500,
-    booked: 1200,
-    bookingRate: 80,
-    rating: 4.8,
-    image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80'
+  // Fetch user's events
+  useEffect(() => {
+    const fetchMyEvents = async () => {
+      try {
+        setLoading(true);
+        const userStr = localStorage.getItem(STORAGE_KEYS.USER);
+        
+        console.log('Raw user string from localStorage:', userStr); // Debug log
+        
+        if (!userStr) {
+          console.error('No user found in localStorage');
+          Swal.fire({
+            icon: 'warning',
+            title: 'Not Logged In',
+            text: 'Please log in to view your events.',
+            confirmButtonColor: '#1a1f35'
+          });
+          setLoading(false);
+          return;
+        }
+
+        const user = JSON.parse(userStr);
+        console.log('Parsed user object:', user); // Debug log
+        
+        if (!user || !user.id) {
+          console.error('User object is invalid:', user);
+          Swal.fire({
+            icon: 'warning',
+            title: 'Invalid User Data',
+            text: 'Please log in again.',
+            confirmButtonColor: '#1a1f35'
+          });
+          setLoading(false);
+          return;
+        }
+
+        console.log(`Fetching events for user ID: ${user.id} (${user.name})`); // Debug log
+        const response = await fetch(`${API_BASE_URL}/api/events/user/${user.id}`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch events');
+        }
+
+        const data = await response.json();
+        console.log('Fetched events data:', data); // Debug log
+        
+        // Handle both array and object response formats
+        const eventsArray = Array.isArray(data) ? data : (data.events || []);
+        console.log(`Found ${eventsArray.length} events for user ${user.name}`); // Debug log
+        setMyEvents(eventsArray);
+        
+        // Select first event by default
+        if (eventsArray.length > 0) {
+          setSelectedEvent(eventsArray[0]);
+          console.log('Selected first event:', eventsArray[0].event_name); // Debug log
+        } else {
+          console.log('No events found for this user'); // Debug log
+        }
+        
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching events:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Failed to load your events. Please try again.',
+          confirmButtonColor: '#1a1f35'
+        });
+        setLoading(false);
+      }
+    };
+
+    fetchMyEvents();
+  }, []);
+
+  // Format date for display
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
   };
 
-  // Ticket sales data
+  // Format time for display
+  const formatTime = (timeString) => {
+    return timeString.substring(0, 5); // Extract HH:MM from HH:MM:SS
+  };
+
+  // Calculate booking rate
+  const calculateBookingRate = (booked, capacity) => {
+    return Math.round((booked / capacity) * 100);
+  };
+
+  // Ticket sales data (dummy for now - can be enhanced later)
   const ticketSalesData = [
     { week: 'Week 1', sales: 50 },
     { week: 'Week 2', sales: 100 },
@@ -33,15 +118,41 @@ const EventDetails = () => {
 
   const maxSales = Math.max(...ticketSalesData.map(d => d.sales));
 
-  // Registration trend data (line chart data points)
-  const registrationData = [
-    { date: '2025-01-01', count: 0 },
-    { date: '2025-01-15', count: 50 },
-    { date: '2025-02-01', count: 120 },
-    { date: '2025-02-15', count: 180 },
-    { date: '2025-03-01', count: 240 },
-    { date: '2025-03-15', count: 280 }
-  ];
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="event-details-container">
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Loading your events...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show empty state if no events
+  if (myEvents.length === 0) {
+    return (
+      <div className="event-details-container">
+        <div className="event-details-header">
+          <div>
+            <h1 className="event-details-title">My Events</h1>
+            <p className="event-details-subtitle">Manage and analyze event performance</p>
+          </div>
+        </div>
+        <div className="empty-state-full">
+          <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          <h2>No Events Yet</h2>
+          <p>You haven't created any events yet. Create your first event to get started!</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="event-details-container">
@@ -49,55 +160,79 @@ const EventDetails = () => {
       <div className="event-details-header">
         <div>
           <h1 className="event-details-title">My Events</h1>
-          <p className="event-details-subtitle">Manage and analyze event performance</p>
-        </div>
-        <div className="header-actions">
-          <button className="action-btn share-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="18" cy="5" r="3"></circle>
-              <circle cx="6" cy="12" r="3"></circle>
-              <circle cx="18" cy="19" r="3"></circle>
-              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
-            </svg>
-            Share
-          </button>
-          <button className="action-btn export-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="7 10 12 15 17 10"></polyline>
-              <line x1="12" y1="15" x2="12" y2="3"></line>
-            </svg>
-            Export
-          </button>
-          <button className="action-btn edit-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-            </svg>
-            Edit
-          </button>
-          <button className="action-btn delete-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="3 6 5 6 21 6"></polyline>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-            </svg>
-            Delete
-          </button>
+          <p className="event-details-subtitle">You have {myEvents.length} event{myEvents.length !== 1 ? 's' : ''}</p>
         </div>
       </div>
 
-      {/* Event Card */}
-      <div className="event-main-card">
-        <div className="event-image-section">
-          <img src={event.image} alt={event.title} className="event-main-image" />
-        </div>
-        <div className="event-info-section">
-          <div className="event-title-row">
-            <h2 className="event-main-title">{event.title}</h2>
-            <span className={`category-badge-detail ${event.category}`}>{event.category}</span>
+      {/* Events List */}
+      <div className="my-events-grid">
+        {myEvents.map((event) => (
+          <div 
+            key={event.id} 
+            className={`my-event-card ${selectedEvent?.id === event.id ? 'selected' : ''}`}
+            onClick={() => setSelectedEvent(event)}
+          >
+            <div className="my-event-image">
+              {event.photo_url ? (
+                <img src={`${API_BASE_URL}${event.photo_url}`} alt={event.event_name} />
+              ) : (
+                <div className="no-image-placeholder">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                  </svg>
+                </div>
+              )}
+            </div>
+            <div className="my-event-info">
+              <h3 className="my-event-title">{event.event_name}</h3>
+              <div className="my-event-meta">
+                <span className={`category-badge-small ${event.event_category}`}>
+                  {event.event_category}
+                </span>
+                <span className="my-event-date">
+                  {new Date(event.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </span>
+              </div>
+              <div className="my-event-stats">
+                <div className="my-event-stat">
+                  <span className="stat-label">Booked:</span>
+                  <span className="stat-value">{event.booked || 0}/{event.capacity}</span>
+                </div>
+                <div className="my-event-stat">
+                  <span className="stat-label">Price:</span>
+                  <span className="stat-value">${event.ticket_price}</span>
+                </div>
+              </div>
+            </div>
           </div>
-          <p className="event-description">{event.description}</p>
+        ))}
+      </div>
+
+      {/* Selected Event Details */}
+      {selectedEvent && (
+        <>
+          {/* Event Card */}
+          <div className="event-main-card">
+            <div className="event-image-section">
+              {selectedEvent.photo_url ? (
+                <img src={`${API_BASE_URL}${selectedEvent.photo_url}`} alt={selectedEvent.event_name} className="event-main-image" />
+              ) : (
+                <div className="event-main-image no-image-placeholder-large">
+                  <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                  </svg>
+                </div>
+              )}
+            </div>
+            <div className="event-info-section">
+              <div className="event-title-row">
+                <h2 className="event-main-title">{selectedEvent.event_name}</h2>
+                <span className={`category-badge-detail ${selectedEvent.event_category}`}>{selectedEvent.event_category}</span>
+              </div>
           
           <div className="event-meta-grid">
             <div className="meta-item">
@@ -109,7 +244,7 @@ const EventDetails = () => {
               </svg>
               <div>
                 <div className="meta-label">Date</div>
-                <div className="meta-value">{event.date}</div>
+                <div className="meta-value">{formatDate(selectedEvent.event_date)}</div>
               </div>
             </div>
 
@@ -120,7 +255,7 @@ const EventDetails = () => {
               </svg>
               <div>
                 <div className="meta-label">Time</div>
-                <div className="meta-value">{event.time}</div>
+                <div className="meta-value">{formatTime(selectedEvent.event_time)}</div>
               </div>
             </div>
 
@@ -131,7 +266,7 @@ const EventDetails = () => {
               </svg>
               <div>
                 <div className="meta-label">Location</div>
-                <div className="meta-value">{event.location}</div>
+                <div className="meta-value">{selectedEvent.location}</div>
               </div>
             </div>
 
@@ -142,7 +277,7 @@ const EventDetails = () => {
               </svg>
               <div>
                 <div className="meta-label">Price</div>
-                <div className="meta-value">{event.price}</div>
+                <div className="meta-value">${selectedEvent.ticket_price}</div>
               </div>
             </div>
           </div>
@@ -150,20 +285,20 @@ const EventDetails = () => {
           <div className="event-stats-row">
             <div className="stat-box">
               <div className="stat-label">Capacity</div>
-              <div className="stat-value">{event.capacity.toLocaleString()}</div>
+              <div className="stat-value">{selectedEvent.capacity.toLocaleString()}</div>
             </div>
             <div className="stat-box">
               <div className="stat-label">Booked</div>
-              <div className="stat-value booked">{event.booked.toLocaleString()}</div>
+              <div className="stat-value booked">{(selectedEvent.booked || 0).toLocaleString()}</div>
             </div>
             <div className="stat-box">
               <div className="stat-label">Booking Rate</div>
-              <div className="stat-value">{event.bookingRate}%</div>
+              <div className="stat-value">{calculateBookingRate(selectedEvent.booked || 0, selectedEvent.capacity)}%</div>
             </div>
             <div className="stat-box">
-              <div className="stat-label">Rating</div>
-              <div className="stat-value rating">
-                <span className="star">⭐</span> {event.rating}
+              <div className="stat-label">Created</div>
+              <div className="stat-value">
+                {new Date(selectedEvent.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </div>
             </div>
           </div>
@@ -300,6 +435,8 @@ const EventDetails = () => {
             <p>Similar or connected events</p>
           </div>
         </div>
+      )}
+    </>
       )}
     </div>
   );

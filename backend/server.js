@@ -2,6 +2,9 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const { initDB, pool, config } = require('./db');
 
 const app = express();
@@ -11,6 +14,38 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
+
+// Serve uploaded images
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Configure multer for image uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, 'uploads');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'event-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error('Only image files are allowed!'));
+  }
+});
 
 const PORT = process.env.PORT || 4000;
 
@@ -103,6 +138,87 @@ const PORT = process.env.PORT || 4000;
     // Health check endpoint for Docker
     app.get('/api/health', (req, res) => {
       res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+    });
+
+    // Create Event endpoint
+    app.post('/api/events', upload.single('photo'), async (req, res) => {
+      try {
+        const { event_name, event_category, event_date, event_time, location, ticket_price, capacity, organizer_id } = req.body;
+        
+        if (!event_name || !event_category || !event_date || !event_time || !location || !ticket_price || !capacity || !organizer_id) {
+          return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        const photo_url = req.file ? `/uploads/${req.file.filename}` : null;
+
+        const [result] = await pool.query(
+          'INSERT INTO events (event_name, event_category, event_date, event_time, location, ticket_price, capacity, photo_url, organizer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [event_name, event_category, event_date, event_time, location, ticket_price, capacity, photo_url, organizer_id]
+        );
+
+        res.status(201).json({ 
+          id: result.insertId, 
+          event_name,
+          event_category,
+          event_date, 
+          event_time, 
+          location, 
+          ticket_price, 
+          capacity, 
+          photo_url,
+          organizer_id,
+          booked: 0,
+          message: 'Event created successfully' 
+        });
+      } catch (err) {
+        console.error('Error creating event:', err);
+        res.status(500).json({ error: 'Server error' });
+      }
+    });
+
+    // Get all events for a user (organized by them)
+    app.get('/api/events/user/:userId', async (req, res) => {
+      try {
+        const { userId } = req.params;
+        const [rows] = await pool.query(
+          'SELECT * FROM events WHERE organizer_id = ? ORDER BY event_date DESC, event_time DESC',
+          [userId]
+        );
+        console.log(`Fetching events for user ${userId}, found ${rows.length} events`); // Debug log
+        res.json(rows); // Return array directly
+      } catch (err) {
+        console.error('Error fetching events:', err);
+        res.status(500).json({ error: 'Server error' });
+      }
+    });
+
+    // Get all events
+    app.get('/api/events', async (req, res) => {
+      try {
+        const [rows] = await pool.query(
+          'SELECT e.*, u.name as organizer_name FROM events e LEFT JOIN users u ON e.organizer_id = u.id ORDER BY e.event_date DESC, e.event_time DESC'
+        );
+        res.json(rows); // Return array directly
+      } catch (err) {
+        console.error('Error fetching events:', err);
+        res.status(500).json({ error: 'Server error' });
+      }
+    });
+
+    // Get single event by ID
+    app.get('/api/events/:id', async (req, res) => {
+      try {
+        const { id } = req.params;
+        const [rows] = await pool.query(
+          'SELECT e.*, u.name as organizer_name FROM events e LEFT JOIN users u ON e.organizer_id = u.id WHERE e.id = ?',
+          [id]
+        );
+        if (!rows.length) return res.status(404).json({ error: 'Event not found' });
+        res.json(rows[0]);
+      } catch (err) {
+        console.error('Error fetching event:', err);
+        res.status(500).json({ error: 'Server error' });
+      }
     });
 
     app.listen(PORT, () => console.log(`Server running on port ${PORT} - http://localhost:${PORT}`));

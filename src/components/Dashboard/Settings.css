@@ -530,7 +530,14 @@
 /* Events Section */
 .events-section {
   display: grid;
-  gap: 24px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .events-section {
+    grid-template-columns: 1fr;
+  }
 }
 
 .events-header {
