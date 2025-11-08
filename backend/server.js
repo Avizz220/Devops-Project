@@ -221,6 +221,80 @@ const PORT = process.env.PORT || 4000;
       }
     });
 
+    // Update event
+    app.put('/api/events/:id', upload.single('photo'), async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { event_name, event_category, event_date, event_time, location, ticket_price, capacity, organizer_id } = req.body;
+        
+        // Validate required fields
+        if (!event_name || !event_category || !event_date || !event_time || !location || !ticket_price || !capacity || !organizer_id) {
+          return res.status(400).json({ error: 'All fields are required' });
+        }
+
+        // Check if event exists and user owns it
+        const [existingEvent] = await pool.query('SELECT * FROM events WHERE id = ? AND organizer_id = ?', [id, organizer_id]);
+        if (!existingEvent.length) {
+          return res.status(404).json({ error: 'Event not found or unauthorized' });
+        }
+
+        // Prepare update query
+        let photo_url = existingEvent[0].photo_url;
+        if (req.file) {
+          photo_url = '/uploads/' + req.file.filename;
+          // Delete old photo if it exists
+          if (existingEvent[0].photo_url) {
+            const oldPhotoPath = path.join(__dirname, existingEvent[0].photo_url);
+            if (fs.existsSync(oldPhotoPath)) {
+              fs.unlinkSync(oldPhotoPath);
+            }
+          }
+        }
+
+        await pool.query(
+          'UPDATE events SET event_name = ?, event_category = ?, event_date = ?, event_time = ?, location = ?, ticket_price = ?, capacity = ?, photo_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+          [event_name, event_category, event_date, event_time, location, ticket_price, capacity, photo_url, id]
+        );
+
+        res.json({ message: 'Event updated successfully', id });
+      } catch (err) {
+        console.error('Error updating event:', err);
+        res.status(500).json({ error: 'Server error' });
+      }
+    });
+
+    // Delete event
+    app.delete('/api/events/:id', async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { organizer_id } = req.query;
+
+        if (!organizer_id) {
+          return res.status(400).json({ error: 'Organizer ID is required' });
+        }
+
+        // Check if event exists and user owns it
+        const [existingEvent] = await pool.query('SELECT * FROM events WHERE id = ? AND organizer_id = ?', [id, organizer_id]);
+        if (!existingEvent.length) {
+          return res.status(404).json({ error: 'Event not found or unauthorized' });
+        }
+
+        // Delete photo file if it exists
+        if (existingEvent[0].photo_url) {
+          const photoPath = path.join(__dirname, existingEvent[0].photo_url);
+          if (fs.existsSync(photoPath)) {
+            fs.unlinkSync(photoPath);
+          }
+        }
+
+        await pool.query('DELETE FROM events WHERE id = ?', [id]);
+        res.json({ message: 'Event deleted successfully' });
+      } catch (err) {
+        console.error('Error deleting event:', err);
+        res.status(500).json({ error: 'Server error' });
+      }
+    });
+
     app.listen(PORT, () => console.log(`Server running on port ${PORT} - http://localhost:${PORT}`));
   } catch (err) {
     console.error('Failed to start server:', err);

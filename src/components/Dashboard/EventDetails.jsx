@@ -7,7 +7,21 @@ const EventDetails = () => {
   const [activeTab, setActiveTab] = useState('analytics');
   const [myEvents, setMyEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  // Edit form states
+  const [editEventName, setEditEventName] = useState('');
+  const [editEventCategory, setEditEventCategory] = useState('tech');
+  const [editEventDate, setEditEventDate] = useState('');
+  const [editEventTime, setEditEventTime] = useState('');
+  const [editLocation, setEditLocation] = useState('');
+  const [editTicketPrice, setEditTicketPrice] = useState('');
+  const [editCapacity, setEditCapacity] = useState('');
+  const [editEventPhoto, setEditEventPhoto] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch user's events
   useEffect(() => {
@@ -105,6 +119,152 @@ const EventDetails = () => {
     return Math.round((booked / capacity) * 100);
   };
 
+  // Handle delete event
+  const handleDeleteEvent = async (eventId) => {
+    const result = await Swal.fire({
+      title: 'Delete Event?',
+      text: "This action cannot be undone!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const userStr = localStorage.getItem(STORAGE_KEYS.USER);
+        const user = JSON.parse(userStr);
+
+        const response = await fetch(`${API_BASE_URL}/api/events/${eventId}?organizer_id=${user.id}`, {
+          method: 'DELETE'
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete event');
+        }
+
+        // Remove event from state
+        setMyEvents(prev => prev.filter(e => e.id !== eventId));
+        
+        // Close modal if deleted event was selected
+        if (selectedEvent?.id === eventId) {
+          setModalOpen(false);
+          setSelectedEvent(null);
+        }
+
+        Swal.fire({
+          icon: 'success',
+          title: 'Deleted!',
+          text: 'Event has been deleted.',
+          confirmButtonColor: '#1a1f35'
+        });
+      } catch (error) {
+        console.error('Error deleting event:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Failed to delete event. Please try again.',
+          confirmButtonColor: '#1a1f35'
+        });
+      }
+    }
+  };
+
+  // Handle open edit modal
+  const handleEditEvent = (event) => {
+    setEditingEvent(event);
+    setEditEventName(event.event_name);
+    setEditEventCategory(event.event_category);
+    setEditEventDate(event.event_date.split('T')[0]); // Format for input[type="date"]
+    setEditEventTime(event.event_time.substring(0, 5)); // HH:MM
+    setEditLocation(event.location);
+    setEditTicketPrice(event.ticket_price);
+    setEditCapacity(event.capacity);
+    setEditEventPhoto(null);
+    setEditModalOpen(true);
+  };
+
+  // Handle update event
+  const handleUpdateEvent = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      const userStr = localStorage.getItem(STORAGE_KEYS.USER);
+      const user = JSON.parse(userStr);
+
+      const formData = new FormData();
+      formData.append('event_name', editEventName);
+      formData.append('event_category', editEventCategory);
+      formData.append('event_date', editEventDate);
+      formData.append('event_time', editEventTime);
+      formData.append('location', editLocation);
+      formData.append('ticket_price', editTicketPrice);
+      formData.append('capacity', editCapacity);
+      formData.append('organizer_id', user.id);
+      
+      if (editEventPhoto) {
+        formData.append('photo', editEventPhoto);
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/events/${editingEvent.id}`, {
+        method: 'PUT',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update event');
+      }
+
+      // Update event in state
+      const updatedEvents = myEvents.map(ev => {
+        if (ev.id === editingEvent.id) {
+          return {
+            ...ev,
+            event_name: editEventName,
+            event_category: editEventCategory,
+            event_date: editEventDate,
+            event_time: editEventTime,
+            location: editLocation,
+            ticket_price: editTicketPrice,
+            capacity: editCapacity,
+            photo_url: editEventPhoto ? `/uploads/${editEventPhoto.name}` : ev.photo_url
+          };
+        }
+        return ev;
+      });
+      
+      setMyEvents(updatedEvents);
+      
+      // Update selected event if it was being edited
+      if (selectedEvent?.id === editingEvent.id) {
+        setSelectedEvent(updatedEvents.find(e => e.id === editingEvent.id));
+      }
+
+      setEditModalOpen(false);
+      setEditingEvent(null);
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Updated!',
+        text: 'Event has been updated successfully.',
+        confirmButtonColor: '#1a1f35'
+      });
+
+      setIsSubmitting(false);
+    } catch (error) {
+      console.error('Error updating event:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to update event. Please try again.',
+        confirmButtonColor: '#1a1f35'
+      });
+      setIsSubmitting(false);
+    }
+  };
+
   // Ticket sales data (dummy for now - can be enhanced later)
   const ticketSalesData = [
     { week: 'Week 1', sales: 50 },
@@ -169,9 +329,34 @@ const EventDetails = () => {
         {myEvents.map((event) => (
           <div 
             key={event.id} 
-            className={`my-event-card ${selectedEvent?.id === event.id ? 'selected' : ''}`}
-            onClick={() => setSelectedEvent(event)}
+            className="my-event-card"
           >
+            {/* Edit/Delete Actions */}
+            <div className="event-card-actions">
+              <button 
+                className="edit-btn" 
+                onClick={(e) => { e.stopPropagation(); handleEditEvent(event); }}
+                title="Edit Event"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+              </button>
+              <button 
+                className="delete-btn" 
+                onClick={(e) => { e.stopPropagation(); handleDeleteEvent(event.id); }}
+                title="Delete Event"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+              </button>
+            </div>
+
             <div className="my-event-image">
               {event.photo_url ? (
                 <img src={`${API_BASE_URL}${event.photo_url}`} alt={event.event_name} />
@@ -205,127 +390,93 @@ const EventDetails = () => {
                   <span className="stat-value">${event.ticket_price}</span>
                 </div>
               </div>
+              <button 
+                className="view-details-btn"
+                onClick={() => { setSelectedEvent(event); setModalOpen(true); }}
+              >
+                View Details
+              </button>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Selected Event Details */}
-      {selectedEvent && (
-        <>
-          {/* Event Card */}
-          <div className="event-main-card">
-            <div className="event-image-section">
-              {selectedEvent.photo_url ? (
-                <img src={`${API_BASE_URL}${selectedEvent.photo_url}`} alt={selectedEvent.event_name} className="event-main-image" />
-              ) : (
-                <div className="event-main-image no-image-placeholder-large">
-                  <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                    <polyline points="21 15 16 10 5 21"></polyline>
-                  </svg>
+      {/* Modal for selected event details */}
+      {modalOpen && selectedEvent && (
+        <div
+          className="event-modal-overlay"
+          onClick={() => setModalOpen(false)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="event-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setModalOpen(false)} aria-label="Close">✕</button>
+            <div className="event-main-card modal-card">
+              <div className="event-image-section">
+                {selectedEvent.photo_url ? (
+                  <img src={`${API_BASE_URL}${selectedEvent.photo_url}`} alt={selectedEvent.event_name} className="event-main-image" />
+                ) : (
+                  <div className="event-main-image no-image-placeholder-large">
+                    <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                      <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                      <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                  </div>
+                )}
+              </div>
+              <div className="event-info-section">
+                <div className="event-title-row">
+                  <h2 className="event-main-title">{selectedEvent.event_name}</h2>
+                  <span className={`category-badge-detail ${selectedEvent.event_category}`}>{selectedEvent.event_category}</span>
                 </div>
-              )}
-            </div>
-            <div className="event-info-section">
-              <div className="event-title-row">
-                <h2 className="event-main-title">{selectedEvent.event_name}</h2>
-                <span className={`category-badge-detail ${selectedEvent.event_category}`}>{selectedEvent.event_category}</span>
-              </div>
-          
-          <div className="event-meta-grid">
-            <div className="meta-item">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-              </svg>
-              <div>
-                <div className="meta-label">Date</div>
-                <div className="meta-value">{formatDate(selectedEvent.event_date)}</div>
-              </div>
-            </div>
 
-            <div className="meta-item">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <polyline points="12 6 12 12 16 14"></polyline>
-              </svg>
-              <div>
-                <div className="meta-label">Time</div>
-                <div className="meta-value">{formatTime(selectedEvent.event_time)}</div>
-              </div>
-            </div>
+                <div className="event-meta-grid">
+                  <div className="meta-item">
+                    <div>
+                      <div className="meta-label">Date</div>
+                      <div className="meta-value">{formatDate(selectedEvent.event_date)}</div>
+                    </div>
+                  </div>
+                  <div className="meta-item">
+                    <div>
+                      <div className="meta-label">Time</div>
+                      <div className="meta-value">{formatTime(selectedEvent.event_time)}</div>
+                    </div>
+                  </div>
+                  <div className="meta-item">
+                    <div>
+                      <div className="meta-label">Location</div>
+                      <div className="meta-value">{selectedEvent.location}</div>
+                    </div>
+                  </div>
+                  <div className="meta-item">
+                    <div>
+                      <div className="meta-label">Price</div>
+                      <div className="meta-value">${selectedEvent.ticket_price}</div>
+                    </div>
+                  </div>
+                </div>
 
-            <div className="meta-item">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                <circle cx="12" cy="10" r="3"></circle>
-              </svg>
-              <div>
-                <div className="meta-label">Location</div>
-                <div className="meta-value">{selectedEvent.location}</div>
-              </div>
-            </div>
-
-            <div className="meta-item">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="12" y1="1" x2="12" y2="23"></line>
-                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-              </svg>
-              <div>
-                <div className="meta-label">Price</div>
-                <div className="meta-value">${selectedEvent.ticket_price}</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="event-stats-row">
-            <div className="stat-box">
-              <div className="stat-label">Capacity</div>
-              <div className="stat-value">{selectedEvent.capacity.toLocaleString()}</div>
-            </div>
-            <div className="stat-box">
-              <div className="stat-label">Booked</div>
-              <div className="stat-value booked">{(selectedEvent.booked || 0).toLocaleString()}</div>
-            </div>
-            <div className="stat-box">
-              <div className="stat-label">Booking Rate</div>
-              <div className="stat-value">{calculateBookingRate(selectedEvent.booked || 0, selectedEvent.capacity)}%</div>
-            </div>
-            <div className="stat-box">
-              <div className="stat-label">Created</div>
-              <div className="stat-value">
-                {new Date(selectedEvent.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                <div className="event-stats-row">
+                  <div className="stat-box">
+                    <div className="stat-label">Capacity</div>
+                    <div className="stat-value">{selectedEvent.capacity.toLocaleString()}</div>
+                  </div>
+                  <div className="stat-box">
+                    <div className="stat-label">Booked</div>
+                    <div className="stat-value booked">{(selectedEvent.booked || 0).toLocaleString()}</div>
+                  </div>
+                  <div className="stat-box">
+                    <div className="stat-label">Booking Rate</div>
+                    <div className="stat-value">{calculateBookingRate(selectedEvent.booked || 0, selectedEvent.capacity)}%</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="event-tabs">
-        <button
-          className={`event-tab ${activeTab === 'analytics' ? 'active' : ''}`}
-          onClick={() => setActiveTab('analytics')}
-        >
-          Analytics
-        </button>
-        <button
-          className={`event-tab ${activeTab === 'attendees' ? 'active' : ''}`}
-          onClick={() => setActiveTab('attendees')}
-        >
-          Attendees
-        </button>
-        <button
-          className={`event-tab ${activeTab === 'related' ? 'active' : ''}`}
-          onClick={() => setActiveTab('related')}
-        >
-          Related Events
-        </button>
-      </div>
+      )}
 
       {/* Analytics Tab Content */}
       {activeTab === 'analytics' && (
@@ -436,7 +587,153 @@ const EventDetails = () => {
           </div>
         </div>
       )}
-    </>
+
+      {/* Edit Event Modal */}
+      {editModalOpen && editingEvent && (
+        <div className="event-modal-overlay" onClick={() => { setEditModalOpen(false); setEditingEvent(null); }}>
+          <div className="event-modal edit-event-modal" onClick={(e) => e.stopPropagation()}>
+            <button 
+              className="modal-close" 
+              onClick={() => { setEditModalOpen(false); setEditingEvent(null); }}
+              aria-label="Close"
+            >
+              ✕
+            </button>
+            
+            <h2 className="edit-modal-title">Edit Event</h2>
+            
+            <form onSubmit={handleUpdateEvent} className="edit-event-form">
+              <div className="form-group">
+                <label htmlFor="edit-event-name">Event Name *</label>
+                <input
+                  id="edit-event-name"
+                  type="text"
+                  value={editEventName}
+                  onChange={(e) => setEditEventName(e.target.value)}
+                  required
+                  placeholder="Enter event name"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="edit-event-category">Category *</label>
+                <select
+                  id="edit-event-category"
+                  value={editEventCategory}
+                  onChange={(e) => setEditEventCategory(e.target.value)}
+                  required
+                >
+                  <option value="tech">Technology</option>
+                  <option value="music">Music</option>
+                  <option value="sports">Sports</option>
+                  <option value="food">Food & Drink</option>
+                  <option value="art">Art & Culture</option>
+                  <option value="business">Business</option>
+                  <option value="education">Education</option>
+                  <option value="health">Health & Wellness</option>
+                </select>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="edit-event-date">Date *</label>
+                  <input
+                    id="edit-event-date"
+                    type="date"
+                    value={editEventDate}
+                    onChange={(e) => setEditEventDate(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="edit-event-time">Time *</label>
+                  <input
+                    id="edit-event-time"
+                    type="time"
+                    value={editEventTime}
+                    onChange={(e) => setEditEventTime(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="edit-location">Location *</label>
+                <input
+                  id="edit-location"
+                  type="text"
+                  value={editLocation}
+                  onChange={(e) => setEditLocation(e.target.value)}
+                  required
+                  placeholder="Enter event location"
+                />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="edit-ticket-price">Ticket Price ($) *</label>
+                  <input
+                    id="edit-ticket-price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editTicketPrice}
+                    onChange={(e) => setEditTicketPrice(e.target.value)}
+                    required
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="edit-capacity">Capacity *</label>
+                  <input
+                    id="edit-capacity"
+                    type="number"
+                    min="1"
+                    value={editCapacity}
+                    onChange={(e) => setEditCapacity(e.target.value)}
+                    required
+                    placeholder="Enter max capacity"
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="edit-event-photo">Event Photo (Optional - leave empty to keep current)</label>
+                <input
+                  id="edit-event-photo"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setEditEventPhoto(e.target.files[0])}
+                />
+                {editingEvent.photo_url && (
+                  <p className="current-photo-info">
+                    Current photo: {editingEvent.photo_url.split('/').pop()}
+                  </p>
+                )}
+              </div>
+
+              <div className="form-actions">
+                <button
+                  type="button"
+                  className="cancel-btn"
+                  onClick={() => { setEditModalOpen(false); setEditingEvent(null); }}
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="submit-btn"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Updating...' : 'Update Event'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
