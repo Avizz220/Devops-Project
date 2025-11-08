@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import './login.css';
 import { API_ENDPOINTS, STORAGE_KEYS } from '../../config';
+import { useAuth } from '../../App';
 
 // Use local images that will work in Docker + online fallbacks
 const sliderImages = [
@@ -30,6 +31,7 @@ const fallbackBackgrounds = [
 
 const Login = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -92,15 +94,15 @@ const Login = () => {
       }
 
       // The server returns user data directly, not nested in a user object
-      // Save user data to localStorage
-      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(data));
+      // Save user data using the auth context
+      login(data);
       
       // Clear form
       setEmail('');
       setPassword('');
       
       // Show success message
-      const result = await Swal.fire({
+      await Swal.fire({
         icon: 'success',
         title: 'Login Successful!',
         text: `Welcome back, ${data.name}!`,
@@ -109,8 +111,8 @@ const Login = () => {
         showConfirmButton: false
       });
       
-      // Redirect to home/dashboard
-      navigate('/');
+      // Navigate to dashboard (will happen automatically due to auth state change)
+      navigate('/', { replace: true });
     } catch (error) {
       Swal.fire({
         icon: 'error',

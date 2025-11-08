@@ -1,0 +1,598 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { STORAGE_KEYS } from '../../config';
+import Swal from 'sweetalert2';
+import './Settings.css';
+
+const Settings = () => {
+  const [user, setUser] = useState(null);
+  const [activeTab, setActiveTab] = useState('profile');
+  const [profileImage, setProfileImage] = useState(null);
+  const fileInputRef = useRef(null);
+
+  // Password reset form
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Profile edit states
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editedName, setEditedName] = useState('');
+  const [editedEmail, setEditedEmail] = useState('');
+
+  useEffect(() => {
+    // Load user data from localStorage
+    const userData = localStorage.getItem(STORAGE_KEYS.USER);
+    if (userData) {
+      const parsedUser = JSON.parse(userData);
+      setUser(parsedUser);
+      setEditedName(parsedUser.name || '');
+      setEditedEmail(parsedUser.email || '');
+      
+      // Load saved profile image if exists
+      const savedImage = localStorage.getItem(`profile_image_${parsedUser.id}`);
+      if (savedImage) {
+        setProfileImage(savedImage);
+      }
+    }
+  }, []);
+
+  const handleImageClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid File',
+          text: 'Please select an image file (JPG, PNG, GIF)',
+        });
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        Swal.fire({
+          icon: 'error',
+          title: 'File Too Large',
+          text: 'Please select an image smaller than 5MB',
+        });
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const imageData = reader.result;
+        setProfileImage(imageData);
+        
+        // Save to localStorage
+        if (user?.id) {
+          localStorage.setItem(`profile_image_${user.id}`, imageData);
+        }
+
+        Swal.fire({
+          icon: 'success',
+          title: 'Profile Picture Updated',
+          text: 'Your profile picture has been updated successfully!',
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    Swal.fire({
+      title: 'Remove Profile Picture?',
+      text: 'Are you sure you want to remove your profile picture?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Yes, remove it',
+    }).then((result) => {
+      if (result.isConfirmed) {
+        setProfileImage(null);
+        if (user?.id) {
+          localStorage.removeItem(`profile_image_${user.id}`);
+        }
+        Swal.fire({
+          icon: 'success',
+          title: 'Removed',
+          text: 'Profile picture has been removed',
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      }
+    });
+  };
+
+  const handlePasswordReset = async (e) => {
+    e.preventDefault();
+
+    // Validation
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Missing Fields',
+        text: 'Please fill in all password fields',
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Password Mismatch',
+        text: 'New password and confirmation do not match',
+      });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Weak Password',
+        text: 'Password must be at least 6 characters long',
+      });
+      return;
+    }
+
+    try {
+      // TODO: Call backend API to reset password
+      // const response = await fetch('http://localhost:4000/api/auth/reset-password', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ 
+      //     userId: user.id,
+      //     currentPassword, 
+      //     newPassword 
+      //   })
+      // });
+
+      // Simulate API call for now
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Password Updated',
+        text: 'Your password has been changed successfully!',
+        timer: 2000,
+        showConfirmButton: false,
+      });
+
+      // Clear form
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Update Failed',
+        text: error.message || 'Failed to update password. Please try again.',
+      });
+    }
+  };
+
+  const handleProfileUpdate = () => {
+    if (!editedName.trim() || !editedEmail.trim()) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Invalid Input',
+        text: 'Name and email cannot be empty',
+      });
+      return;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(editedEmail)) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Invalid Email',
+        text: 'Please enter a valid email address',
+      });
+      return;
+    }
+
+    const updatedUser = {
+      ...user,
+      name: editedName,
+      email: editedEmail,
+    };
+
+    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
+    setUser(updatedUser);
+    setIsEditingProfile(false);
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Profile Updated',
+      text: 'Your profile has been updated successfully!',
+      timer: 2000,
+      showConfirmButton: false,
+    });
+  };
+
+  const cancelProfileEdit = () => {
+    setEditedName(user?.name || '');
+    setEditedEmail(user?.email || '');
+    setIsEditingProfile(false);
+  };
+
+  if (!user) {
+    return (
+      <div className="settings-loading">
+        <div className="spinner"></div>
+        <p>Loading settings...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="settings-container">
+      <div className="settings-header">
+        <h1 className="settings-title">⚙️ Account Settings</h1>
+        <p className="settings-subtitle">Manage your account preferences and security</p>
+      </div>
+
+      {/* Tabs */}
+      <div className="settings-tabs">
+        <button
+          className={`tab-btn ${activeTab === 'profile' ? 'active' : ''}`}
+          onClick={() => setActiveTab('profile')}
+        >
+          👤 Profile
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'security' ? 'active' : ''}`}
+          onClick={() => setActiveTab('security')}
+        >
+          🔒 Security
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'events' ? 'active' : ''}`}
+          onClick={() => setActiveTab('events')}
+        >
+          📅 My Events
+        </button>
+      </div>
+
+      {/* Profile Tab */}
+      {activeTab === 'profile' && (
+        <div className="settings-content">
+          <div className="profile-section">
+            <div className="profile-card">
+              <div className="profile-header-section">
+                <h2>Profile Information</h2>
+                {!isEditingProfile && (
+                  <button className="edit-profile-btn" onClick={() => setIsEditingProfile(true)}>
+                    ✏️ Edit Profile
+                  </button>
+                )}
+              </div>
+
+              {/* Profile Picture */}
+              <div className="profile-picture-section">
+                <h3 className="profile-picture-title">Profile Picture</h3>
+                <div className="profile-picture-wrapper">
+                  <div className="profile-picture-container">
+                    {profileImage ? (
+                      <img src={profileImage} alt="Profile" className="profile-picture" />
+                    ) : (
+                      <div className="profile-picture-placeholder">
+                        <span className="profile-initials">
+                          {user.name?.charAt(0).toUpperCase() || '?'}
+                        </span>
+                      </div>
+                    )}
+                    <button className="camera-btn" onClick={handleImageClick} title="Change profile picture">
+                      <svg 
+                        width="24" 
+                        height="24" 
+                        viewBox="0 0 24 24" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        strokeWidth="2.5" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                      >
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                        <circle cx="12" cy="13" r="4"></circle>
+                      </svg>
+                    </button>
+                  </div>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImageChange}
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                  />
+                  <p className="profile-picture-hint">Click the camera icon to upload a photo</p>
+                </div>
+                {profileImage && (
+                  <button className="remove-image-btn" onClick={handleRemoveImage}>
+                    🗑️ Remove Picture
+                  </button>
+                )}
+              </div>
+
+              {/* Profile Details */}
+              <div className="profile-details">
+                <div className="detail-group">
+                  <label className="detail-label">Full Name</label>
+                  {isEditingProfile ? (
+                    <input
+                      type="text"
+                      className="detail-input"
+                      value={editedName}
+                      onChange={(e) => setEditedName(e.target.value)}
+                      placeholder="Enter your name"
+                    />
+                  ) : (
+                    <div className="detail-value">{user.name}</div>
+                  )}
+                </div>
+
+                <div className="detail-group">
+                  <label className="detail-label">Email Address</label>
+                  {isEditingProfile ? (
+                    <input
+                      type="email"
+                      className="detail-input"
+                      value={editedEmail}
+                      onChange={(e) => setEditedEmail(e.target.value)}
+                      placeholder="Enter your email"
+                    />
+                  ) : (
+                    <div className="detail-value">{user.email}</div>
+                  )}
+                </div>
+
+                <div className="detail-group">
+                  <label className="detail-label">Role</label>
+                  <div className="detail-value">
+                    <span className={`role-badge ${user.role || 'participant'}`}>
+                      {user.role === 'organizer' ? '👨‍💼 Organizer' : '👥 Participant'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="detail-group">
+                  <label className="detail-label">Member Since</label>
+                  <div className="detail-value">
+                    {user.created_at ? new Date(user.created_at).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    }) : 'N/A'}
+                  </div>
+                </div>
+              </div>
+
+              {isEditingProfile && (
+                <div className="profile-actions">
+                  <button className="save-btn" onClick={handleProfileUpdate}>
+                    💾 Save Changes
+                  </button>
+                  <button className="cancel-btn" onClick={cancelProfileEdit}>
+                    ❌ Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Security Tab */}
+      {activeTab === 'security' && (
+        <div className="settings-content">
+          <div className="security-section">
+            <div className="security-card">
+              <h2>🔒 Reset Password</h2>
+              <p className="security-description">
+                Keep your account secure by using a strong password
+              </p>
+
+              <form onSubmit={handlePasswordReset} className="password-form">
+                <div className="form-group">
+                  <label className="form-label">Current Password</label>
+                  <div className="password-input-wrapper">
+                    <input
+                      type={showCurrentPassword ? 'text' : 'password'}
+                      className="form-input"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="Enter current password"
+                    />
+                    <button
+                      type="button"
+                      className="toggle-password"
+                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    >
+                      {showCurrentPassword ? '👁️' : '👁️‍🗨️'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">New Password</label>
+                  <div className="password-input-wrapper">
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      className="form-input"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Enter new password"
+                    />
+                    <button
+                      type="button"
+                      className="toggle-password"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                    >
+                      {showNewPassword ? '👁️' : '👁️‍🗨️'}
+                    </button>
+                  </div>
+                  <small className="form-hint">Must be at least 6 characters</small>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Confirm New Password</label>
+                  <div className="password-input-wrapper">
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      className="form-input"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirm new password"
+                    />
+                    <button
+                      type="button"
+                      className="toggle-password"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    >
+                      {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
+                    </button>
+                  </div>
+                </div>
+
+                <button type="submit" className="reset-password-btn">
+                  🔄 Update Password
+                </button>
+              </form>
+            </div>
+
+            {/* Additional Security Info */}
+            <div className="security-tips">
+              <h3>🛡️ Password Tips</h3>
+              <ul>
+                <li>Use a combination of uppercase and lowercase letters</li>
+                <li>Include numbers and special characters</li>
+                <li>Avoid using personal information</li>
+                <li>Don't reuse passwords from other accounts</li>
+                <li>Change your password regularly</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* My Events Tab */}
+      {activeTab === 'events' && (
+        <div className="settings-content">
+          <div className="events-section">
+            {/* Organized Events */}
+            <div className="events-card">
+              <div className="events-header">
+                <h2>📋 Organized Events</h2>
+                <span className="events-count">12 Events</span>
+              </div>
+              <div className="events-stats">
+                <div className="stat-item">
+                  <span className="stat-icon">✅</span>
+                  <div>
+                    <div className="stat-number">8</div>
+                    <div className="stat-label">Completed</div>
+                  </div>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-icon">🔄</span>
+                  <div>
+                    <div className="stat-number">3</div>
+                    <div className="stat-label">Ongoing</div>
+                  </div>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-icon">📅</span>
+                  <div>
+                    <div className="stat-number">1</div>
+                    <div className="stat-label">Upcoming</div>
+                  </div>
+                </div>
+              </div>
+              <button className="view-all-btn">View All Organized Events →</button>
+            </div>
+
+            {/* Participating Events */}
+            <div className="events-card">
+              <div className="events-header">
+                <h2>🎫 Participating Events</h2>
+                <span className="events-count">7 Events</span>
+              </div>
+              <div className="events-stats">
+                <div className="stat-item">
+                  <span className="stat-icon">✅</span>
+                  <div>
+                    <div className="stat-number">4</div>
+                    <div className="stat-label">Attended</div>
+                  </div>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-icon">🎟️</span>
+                  <div>
+                    <div className="stat-number">2</div>
+                    <div className="stat-label">Registered</div>
+                  </div>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-icon">⏳</span>
+                  <div>
+                    <div className="stat-number">1</div>
+                    <div className="stat-label">Pending</div>
+                  </div>
+                </div>
+              </div>
+              <button className="view-all-btn">View All Participating Events →</button>
+            </div>
+
+            {/* Expected/Wishlist Events */}
+            <div className="events-card">
+              <div className="events-header">
+                <h2>⭐ Expected to Participate</h2>
+                <span className="events-count">5 Events</span>
+              </div>
+              <div className="expected-events-list">
+                <div className="expected-event-item">
+                  <span className="event-icon">🎵</span>
+                  <div className="event-info">
+                    <div className="event-name">Summer Music Festival 2025</div>
+                    <div className="event-date">Dec 15, 2025</div>
+                  </div>
+                  <button className="register-btn">Register</button>
+                </div>
+                <div className="expected-event-item">
+                  <span className="event-icon">💻</span>
+                  <div className="event-info">
+                    <div className="event-name">Tech Innovation Summit</div>
+                    <div className="event-date">Dec 20, 2025</div>
+                  </div>
+                  <button className="register-btn">Register</button>
+                </div>
+                <div className="expected-event-item">
+                  <span className="event-icon">🎨</span>
+                  <div className="event-info">
+                    <div className="event-name">Art & Design Expo</div>
+                    <div className="event-date">Jan 5, 2026</div>
+                  </div>
+                  <button className="register-btn">Register</button>
+                </div>
+              </div>
+              <button className="view-all-btn">Browse More Events →</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Settings;

@@ -2,9 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './dashboard.css';
 import { STORAGE_KEYS } from '../../config';
+import BrowseEvents from './BrowseEvents';
+import Settings from './Settings';
+import EventDetails from './EventDetails';
+import AttendeeInsights from './AttendeeInsights';
+import { useAuth } from '../../App';
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const [user, setUser] = useState(null);
   const [activeMenu, setActiveMenu] = useState('overview');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -101,8 +107,8 @@ const Dashboard = () => {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem(STORAGE_KEYS.USER);
-    navigate('/login');
+    logout();
+    navigate('/login', { replace: true });
   };
 
   const maxRevenue = Math.max(...revenueData.map(d => d.value));
@@ -148,7 +154,7 @@ const Dashboard = () => {
             onClick={() => setActiveMenu('details')}
           >
             <span className="nav-icon">📋</span>
-            <span>Event Details</span>
+            <span>My Events</span>
           </button>
           <button 
             className={`nav-item ${activeMenu === 'insights' ? 'active' : ''}`}
@@ -156,6 +162,13 @@ const Dashboard = () => {
           >
             <span className="nav-icon">👥</span>
             <span>Attendee Insights</span>
+          </button>
+          <button 
+            className={`nav-item ${activeMenu === 'settings' ? 'active' : ''}`}
+            onClick={() => setActiveMenu('settings')}
+          >
+            <span className="nav-icon">⚙️</span>
+            <span>Settings</span>
           </button>
         </nav>
 
@@ -179,176 +192,190 @@ const Dashboard = () => {
 
       {/* Main Content */}
       <main className="dashboard-main">
-        <header className="dashboard-header">
-          <div>
-            <h1 className="page-title">Dashboard Overview</h1>
-            <p className="page-subtitle">Welcome back! Here's what's happening with your events.</p>
-          </div>
-          <button className="btn-create-event" onClick={() => setShowCreateModal(true)}>
-            <span className="btn-icon">📅</span>
-            Create Event
-          </button>
-        </header>
+        {activeMenu === 'overview' && (
+          <>
+            <header className="dashboard-header">
+              <div>
+                <h1 className="page-title">Dashboard Overview</h1>
+                <p className="page-subtitle">Welcome back! Here's what's happening with your events.</p>
+              </div>
+              <button className="btn-create-event" onClick={() => setShowCreateModal(true)}>
+                <span className="btn-icon">📅</span>
+                Create Event
+              </button>
+            </header>
 
-        {/* Stats Cards */}
-        <div className="stats-grid">
-          <div className="stat-card card-animate">
-            <div className="stat-header">
-              <span className="stat-label">Total Events</span>
-              <span className="stat-icon">📅</span>
-            </div>
-            <div className="stat-value">{stats.totalEvents}</div>
-            <div className="stat-footer">
-              <span className="stat-change positive">{stats.eventsChange} from last month</span>
-            </div>
-            <div className="stat-subtext">Active events this month</div>
-          </div>
+            {/* Stats Cards */}
+            <div className="stats-grid">
+              <div className="stat-card card-animate">
+                <div className="stat-header">
+                  <span className="stat-label">Total Events</span>
+                  <span className="stat-icon">📅</span>
+                </div>
+                <div className="stat-value">{stats.totalEvents}</div>
+                <div className="stat-footer">
+                  <span className="stat-change positive">{stats.eventsChange} from last month</span>
+                </div>
+                <div className="stat-subtext">Active events this month</div>
+              </div>
 
-          <div className="stat-card card-animate" style={{ animationDelay: '0.1s' }}>
-            <div className="stat-header">
-              <span className="stat-label">Total Bookings</span>
-              <span className="stat-icon">👥</span>
-            </div>
-            <div className="stat-value">{stats.totalBookings.toLocaleString()}</div>
-            <div className="stat-footer">
-              <span className="stat-change positive">{stats.bookingsChange} from last month</span>
-            </div>
-            <div className="stat-subtext">Tickets sold this month</div>
-          </div>
+              <div className="stat-card card-animate" style={{ animationDelay: '0.1s' }}>
+                <div className="stat-header">
+                  <span className="stat-label">Total Bookings</span>
+                  <span className="stat-icon">👥</span>
+                </div>
+                <div className="stat-value">{stats.totalBookings.toLocaleString()}</div>
+                <div className="stat-footer">
+                  <span className="stat-change positive">{stats.bookingsChange} from last month</span>
+                </div>
+                <div className="stat-subtext">Tickets sold this month</div>
+              </div>
 
-          <div className="stat-card card-animate" style={{ animationDelay: '0.2s' }}>
-            <div className="stat-header">
-              <span className="stat-label">Revenue</span>
-              <span className="stat-icon">💰</span>
-            </div>
-            <div className="stat-value">{stats.revenue}</div>
-            <div className="stat-footer">
-              <span className="stat-change positive">{stats.revenueChange} from last month</span>
-            </div>
-            <div className="stat-subtext">Total revenue generated</div>
-          </div>
+              <div className="stat-card card-animate" style={{ animationDelay: '0.2s' }}>
+                <div className="stat-header">
+                  <span className="stat-label">Revenue</span>
+                  <span className="stat-icon">💰</span>
+                </div>
+                <div className="stat-value">{stats.revenue}</div>
+                <div className="stat-footer">
+                  <span className="stat-change positive">{stats.revenueChange} from last month</span>
+                </div>
+                <div className="stat-subtext">Total revenue generated</div>
+              </div>
 
-          <div className="stat-card card-animate" style={{ animationDelay: '0.3s' }}>
-            <div className="stat-header">
-              <span className="stat-label">Avg Rating</span>
-              <span className="stat-icon">⭐</span>
+              <div className="stat-card card-animate" style={{ animationDelay: '0.3s' }}>
+                <div className="stat-header">
+                  <span className="stat-label">Avg Rating</span>
+                  <span className="stat-icon">⭐</span>
+                </div>
+                <div className="stat-value">{stats.avgRating}</div>
+                <div className="stat-footer">
+                  <span className="stat-change positive">{stats.ratingChange} from last month</span>
+                </div>
+                <div className="stat-subtext">Customer satisfaction</div>
+              </div>
             </div>
-            <div className="stat-value">{stats.avgRating}</div>
-            <div className="stat-footer">
-              <span className="stat-change positive">{stats.ratingChange} from last month</span>
-            </div>
-            <div className="stat-subtext">Customer satisfaction</div>
-          </div>
-        </div>
 
-        {/* Charts Section */}
-        <div className="charts-grid">
-          <div className="chart-card">
-            <div className="chart-header">
-              <span className="chart-icon">📈</span>
-              <h3>Revenue Trends</h3>
+            {/* Charts Section */}
+            <div className="charts-grid">
+              <div className="chart-card">
+                <div className="chart-header">
+                  <span className="chart-icon">📈</span>
+                  <h3>Revenue Trends</h3>
+                </div>
+                <div className="chart-container">
+                  <div className="area-chart">
+                    {revenueData.map((item, index) => (
+                      <div key={index} className="chart-column">
+                        <div 
+                          className="chart-bar"
+                          style={{ 
+                            height: `${(item.value / maxRevenue) * 100}%`,
+                            animationDelay: `${index * 0.1}s`
+                          }}
+                        >
+                          <div className="chart-tooltip">${item.value}k</div>
+                        </div>
+                        <span className="chart-label">{item.month}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="chart-card">
+                <div className="chart-header">
+                  <h3>Event Categories</h3>
+                </div>
+                <div className="chart-container">
+                  <div className="bar-chart">
+                    {categoryData.map((item, index) => (
+                      <div key={index} className="bar-row">
+                        <span className="bar-label">{item.name}</span>
+                        <div className="bar-track">
+                          <div 
+                            className="bar-fill"
+                            style={{ 
+                              width: `${(item.value / maxCategory) * 100}%`,
+                              animationDelay: `${index * 0.15}s`
+                            }}
+                          />
+                        </div>
+                        <span className="bar-value">{item.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="chart-container">
-              <div className="area-chart">
-                {revenueData.map((item, index) => (
-                  <div key={index} className="chart-column">
+
+            {/* Events and Activity */}
+            <div className="bottom-grid">
+              <div className="events-card">
+                <div className="card-header">
+                  <h3>Upcoming Events</h3>
+                  <button className="link-btn" onClick={() => setActiveMenu('browse')}>View All</button>
+                </div>
+                <div className="events-list-new">
+                  {upcomingEvents.map((event, index) => (
                     <div 
-                      className="chart-bar"
-                      style={{ 
-                        height: `${(item.value / maxRevenue) * 100}%`,
-                        animationDelay: `${index * 0.1}s`
-                      }}
+                      key={event.id} 
+                      className="event-card-new"
+                      style={{ animationDelay: `${index * 0.1}s` }}
                     >
-                      <div className="chart-tooltip">${item.value}k</div>
+                      <div className="event-image">
+                        <img src={event.image} alt={event.title} />
+                        <span className={`event-badge badge-${event.type}`}>{event.type}</span>
+                      </div>
+                      <div className="event-details">
+                        <h4>{event.title}</h4>
+                        <div className="event-date-loc">
+                          <span className="event-date-icon">📅 {event.date}</span>
+                          <span className="event-loc-icon">📍 {event.location}</span>
+                        </div>
+                      </div>
                     </div>
-                    <span className="chart-label">{item.month}</span>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              </div>
+
+              <div className="activity-card">
+                <div className="card-header">
+                  <h3>
+                    <span className="activity-icon">🔔</span>
+                    Recent Activity
+                  </h3>
+                </div>
+                <div className="activity-list-new">
+                  {recentActivity.map((activity, index) => (
+                    <div 
+                      key={activity.id} 
+                      className="activity-item-new"
+                      style={{ animationDelay: `${index * 0.1}s` }}
+                    >
+                      <div className="activity-indicator" style={{ background: activity.color }}></div>
+                      <div className="activity-content-new">
+                        <p className="activity-text">{activity.action}</p>
+                        <span className="activity-time">{activity.time}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button className="view-all-notifications">View All Notifications</button>
               </div>
             </div>
-          </div>
+          </>
+        )}
 
-          <div className="chart-card">
-            <div className="chart-header">
-              <h3>Event Categories</h3>
-            </div>
-            <div className="chart-container">
-              <div className="bar-chart">
-                {categoryData.map((item, index) => (
-                  <div key={index} className="bar-row">
-                    <span className="bar-label">{item.name}</span>
-                    <div className="bar-track">
-                      <div 
-                        className="bar-fill"
-                        style={{ 
-                          width: `${(item.value / maxCategory) * 100}%`,
-                          animationDelay: `${index * 0.15}s`
-                        }}
-                      />
-                    </div>
-                    <span className="bar-value">{item.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+        {activeMenu === 'browse' && <BrowseEvents />}
 
-        {/* Events and Activity */}
-        <div className="bottom-grid">
-          <div className="events-card">
-            <div className="card-header">
-              <h3>Upcoming Events</h3>
-              <button className="link-btn">View All →</button>
-            </div>
-            <div className="events-list-new">
-              {upcomingEvents.map((event, index) => (
-                <div 
-                  key={event.id} 
-                  className="event-card-new"
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  <div className="event-image">
-                    <img src={event.image} alt={event.title} />
-                    <span className={`event-badge badge-${event.type}`}>{event.type}</span>
-                  </div>
-                  <div className="event-details">
-                    <h4>{event.title}</h4>
-                    <div className="event-date-loc">
-                      <span className="event-date-icon">📅 {event.date}</span>
-                      <span className="event-loc-icon">📍 {event.location}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+        {activeMenu === 'details' && <EventDetails />}
 
-          <div className="activity-card">
-            <div className="card-header">
-              <h3>
-                <span className="activity-icon">🔔</span>
-                Recent Activity
-              </h3>
-            </div>
-            <div className="activity-list-new">
-              {recentActivity.map((activity, index) => (
-                <div 
-                  key={activity.id} 
-                  className="activity-item-new"
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  <div className="activity-indicator" style={{ background: activity.color }}></div>
-                  <div className="activity-content-new">
-                    <p className="activity-text">{activity.action}</p>
-                    <span className="activity-time">{activity.time}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <button className="view-all-notifications">View All Notifications</button>
-          </div>
-        </div>
+        {activeMenu === 'insights' && <AttendeeInsights />}
+
+        {activeMenu === 'settings' && (
+          <Settings />
+        )}
       </main>
 
       {/* Create Event Modal */}
