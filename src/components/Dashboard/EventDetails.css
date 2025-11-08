@@ -748,6 +748,19 @@
   margin: 0;
 }
 
+.empty-chart-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 14px;
+  background: #f9fafb;
+  border-radius: 8px;
+  margin-top: 16px;
+}
+
 /* Responsive Design */
 @media (max-width: 1200px) {
   .charts-container {

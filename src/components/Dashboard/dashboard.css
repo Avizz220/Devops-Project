@@ -552,6 +552,74 @@
   color: #1a1f35;
 }
 
+/* Events Overview Table */
+.overview-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 8px;
+}
+
+.overview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.overview-table thead {
+  background: #f8fafc;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.overview-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #475569;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.overview-table tbody tr {
+  border-bottom: 1px solid #f1f5f9;
+  transition: background-color 0.2s ease;
+}
+
+.overview-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.overview-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.overview-table td {
+  padding: 14px 16px;
+  color: #334155;
+}
+
+.overview-table .event-name-col {
+  font-weight: 500;
+  color: #1e293b;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.overview-table .count-col {
+  text-align: center;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.overview-table .revenue-col {
+  text-align: right;
+  font-weight: 600;
+  color: #10b981;
+  font-family: 'Courier New', monospace;
+}
+
 /* Bottom Grid */
 .bottom-grid {
   display: grid;

@@ -17,6 +17,14 @@ const Dashboard = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [categoryData, setCategoryData] = useState([]);
+  const [eventsOverview, setEventsOverview] = useState([]);
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [dashboardStats, setDashboardStats] = useState({
+    totalEvents: 0,
+    trendingEvent: { name: 'Loading...', count: 0 },
+    userOrganizedEvents: 0,
+    totalMembers: 0
+  });
   
   // Form states
   const [eventName, setEventName] = useState('');
@@ -28,18 +36,6 @@ const Dashboard = () => {
   const [capacity, setCapacity] = useState('');
   const [eventPhoto, setEventPhoto] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Stats data
-  const stats = {
-    totalEvents: 125,
-    totalBookings: 45680,
-    revenue: '$2.85M',
-    avgRating: 4.7,
-    eventsChange: '+12.5%',
-    bookingsChange: '+8.2%',
-    revenueChange: '+23.5%',
-    ratingChange: '+2.1%'
-  };
 
   // Chart data
   const revenueData = [
@@ -54,32 +50,13 @@ const Dashboard = () => {
     { month: 'Sep', value: 370 }
   ];
 
-  const recentActivity = [
-    { 
-      id: 1, 
-      action: 'Tech Innovation Summit reaching capacity', 
-      time: '2 hours ago',
-      color: '#f59e0b'
-    },
-    { 
-      id: 2, 
-      action: 'New event registration: AI Conference', 
-      time: '4 hours ago',
-      color: '#3b82f6'
-    },
-    { 
-      id: 3, 
-      action: 'Payment received: $15,000', 
-      time: '6 hours ago',
-      color: '#10b981'
-    }
-  ];
-
   useEffect(() => {
     const raw = localStorage.getItem(STORAGE_KEYS.USER);
+    let parsedUser = null;
     if (raw) {
       try {
-        setUser(JSON.parse(raw));
+        parsedUser = JSON.parse(raw);
+        setUser(parsedUser);
       } catch {
         setUser({ name: 'User' });
       }
@@ -88,6 +65,13 @@ const Dashboard = () => {
     // Fetch upcoming events and category data
     fetchUpcomingEvents();
     fetchCategoryData();
+    
+    // Fetch events overview and recent activity for the logged-in user
+    if (parsedUser?.id) {
+      fetchEventsOverview(parsedUser.id);
+      fetchRecentActivity(parsedUser.id);
+      fetchDashboardStats(parsedUser.id);
+    }
 
     // Listen for profile updates from Settings page
     const handleProfileUpdate = (event) => {
@@ -169,6 +153,48 @@ const Dashboard = () => {
     }
   };
 
+  const fetchEventsOverview = async (userId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/events/user/${userId}/overview`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch events overview');
+      }
+      
+      const data = await response.json();
+      setEventsOverview(data);
+    } catch (error) {
+      console.error('Error fetching events overview:', error);
+      setEventsOverview([]);
+    }
+  };
+
+  const fetchRecentActivity = async (userId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/users/${userId}/recent-activity`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch recent activity');
+      }
+      const activities = await response.json();
+      setRecentActivity(activities);
+    } catch (error) {
+      console.error('Error fetching recent activity:', error);
+      setRecentActivity([]);
+    }
+  };
+
+  const fetchDashboardStats = async (userId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/dashboard/stats/${userId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch dashboard stats');
+      }
+      const stats = await response.json();
+      setDashboardStats(stats);
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+    }
+  };
+
   const formatEventDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
@@ -242,6 +268,12 @@ const Dashboard = () => {
         // Refresh upcoming events and category data
         fetchUpcomingEvents();
         fetchCategoryData();
+        // Refresh events overview and recent activity
+        if (user?.id) {
+          fetchEventsOverview(user.id);
+          fetchRecentActivity(user.id);
+          fetchDashboardStats(user.id);
+        }
       } else {
         throw new Error(data.error || 'Failed to create event');
       }
@@ -351,7 +383,7 @@ const Dashboard = () => {
             <header className="dashboard-header">
               <div>
                 <h1 className="page-title">Dashboard Overview</h1>
-                <p className="page-subtitle">Welcome back! Here's what's happening with your events.</p>
+                <p className="page-subtitle">Welcome back! Here's what's happening with events.</p>
               </div>
               <button className="btn-create-event" onClick={() => setShowCreateModal(true)}>
                 <span className="btn-icon">📅</span>
@@ -366,47 +398,39 @@ const Dashboard = () => {
                   <span className="stat-label">Total Events</span>
                   <span className="stat-icon">📅</span>
                 </div>
-                <div className="stat-value">{stats.totalEvents}</div>
-                <div className="stat-footer">
-                  <span className="stat-change positive">{stats.eventsChange} from last month</span>
-                </div>
-                <div className="stat-subtext">Active events this month</div>
+                <div className="stat-value">{dashboardStats.totalEvents}</div>
+                <div className="stat-subtext">Created by all users</div>
               </div>
 
               <div className="stat-card card-animate" style={{ animationDelay: '0.1s' }}>
                 <div className="stat-header">
-                  <span className="stat-label">Total Bookings</span>
-                  <span className="stat-icon">👥</span>
+                  <span className="stat-label">Trending Event</span>
+                  <span className="stat-icon">�</span>
                 </div>
-                <div className="stat-value">{stats.totalBookings.toLocaleString()}</div>
-                <div className="stat-footer">
-                  <span className="stat-change positive">{stats.bookingsChange} from last month</span>
+                <div className="stat-value" style={{ fontSize: '1.3rem', lineHeight: '1.3' }}>
+                  {dashboardStats.trendingEvent.name}
                 </div>
-                <div className="stat-subtext">Tickets sold this month</div>
+                <div className="stat-subtext">
+                  {dashboardStats.trendingEvent.count} {dashboardStats.trendingEvent.count === 1 ? 'user' : 'users'} interested
+                </div>
               </div>
 
               <div className="stat-card card-animate" style={{ animationDelay: '0.2s' }}>
                 <div className="stat-header">
-                  <span className="stat-label">Revenue</span>
-                  <span className="stat-icon">💰</span>
+                  <span className="stat-label">Your Organized Events</span>
+                  <span className="stat-icon">🎯</span>
                 </div>
-                <div className="stat-value">{stats.revenue}</div>
-                <div className="stat-footer">
-                  <span className="stat-change positive">{stats.revenueChange} from last month</span>
-                </div>
-                <div className="stat-subtext">Total revenue generated</div>
+                <div className="stat-value">{dashboardStats.userOrganizedEvents}</div>
+                <div className="stat-subtext">Events you created</div>
               </div>
 
               <div className="stat-card card-animate" style={{ animationDelay: '0.3s' }}>
                 <div className="stat-header">
-                  <span className="stat-label">Avg Rating</span>
-                  <span className="stat-icon">⭐</span>
+                  <span className="stat-label">Members</span>
+                  <span className="stat-icon">👥</span>
                 </div>
-                <div className="stat-value">{stats.avgRating}</div>
-                <div className="stat-footer">
-                  <span className="stat-change positive">{stats.ratingChange} from last month</span>
-                </div>
-                <div className="stat-subtext">Customer satisfaction</div>
+                <div className="stat-value">{dashboardStats.totalMembers}</div>
+                <div className="stat-subtext">Registered event organizers</div>
               </div>
             </div>
 
@@ -414,26 +438,46 @@ const Dashboard = () => {
             <div className="charts-grid">
               <div className="chart-card">
                 <div className="chart-header">
-                  <span className="chart-icon">📈</span>
-                  <h3>Revenue Trends</h3>
+                  <span className="chart-icon">�</span>
+                  <h3>Your Events Overview</h3>
                 </div>
                 <div className="chart-container">
-                  <div className="area-chart">
-                    {revenueData.map((item, index) => (
-                      <div key={index} className="chart-column">
-                        <div 
-                          className="chart-bar"
-                          style={{ 
-                            height: `${(item.value / maxRevenue) * 100}%`,
-                            animationDelay: `${index * 0.1}s`
-                          }}
-                        >
-                          <div className="chart-tooltip">${item.value}k</div>
-                        </div>
-                        <span className="chart-label">{item.month}</span>
-                      </div>
-                    ))}
-                  </div>
+                  {eventsOverview.length === 0 ? (
+                    <div style={{ padding: '40px 20px', textAlign: 'center', color: '#6b7280' }}>
+                      <p style={{ fontSize: '16px', marginBottom: '8px' }}>No events created yet</p>
+                      <p style={{ fontSize: '14px', color: '#9ca3af' }}>Create your first event to see overview data</p>
+                    </div>
+                  ) : (
+                    <div className="overview-table-wrapper">
+                      <table className="overview-table">
+                        <thead>
+                          <tr>
+                            <th>Event Name</th>
+                            <th>Interested</th>
+                            <th>Not Interested</th>
+                            <th>Going</th>
+                            <th>Revenue (LKR)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {eventsOverview.map((event) => (
+                            <tr key={event.event_id}>
+                              <td className="event-name-col">{event.event_name}</td>
+                              <td className="count-col">{event.interested}</td>
+                              <td className="count-col">{event.not_interested}</td>
+                              <td className="count-col">{event.going}</td>
+                              <td className="revenue-col">
+                                {Number(event.revenue).toLocaleString('en-US', { 
+                                  minimumFractionDigits: 2, 
+                                  maximumFractionDigits: 2 
+                                })}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -509,23 +553,29 @@ const Dashboard = () => {
                 <div className="card-header">
                   <h3>
                     <span className="activity-icon">🔔</span>
-                    Recent Activity
+                    Your Recent Activity
                   </h3>
                 </div>
                 <div className="activity-list-new">
-                  {recentActivity.map((activity, index) => (
-                    <div 
-                      key={activity.id} 
-                      className="activity-item-new"
-                      style={{ animationDelay: `${index * 0.1}s` }}
-                    >
-                      <div className="activity-indicator" style={{ background: activity.color }}></div>
-                      <div className="activity-content-new">
-                        <p className="activity-text">{activity.action}</p>
-                        <span className="activity-time">{activity.time}</span>
+                  {recentActivity.length > 0 ? (
+                    recentActivity.map((activity, index) => (
+                      <div 
+                        key={activity.id} 
+                        className="activity-item-new"
+                        style={{ animationDelay: `${index * 0.1}s` }}
+                      >
+                        <div className="activity-indicator" style={{ background: activity.color }}></div>
+                        <div className="activity-content-new">
+                          <p className="activity-text">{activity.action}</p>
+                          <span className="activity-time">{activity.time}</span>
+                        </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="empty-state">
+                      <p>No recent activity yet. Start creating events or marking interest in events!</p>
                     </div>
-                  ))}
+                  )}
                 </div>
                 <button className="view-all-notifications">View All Notifications</button>
               </div>

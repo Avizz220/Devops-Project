@@ -326,7 +326,12 @@ const PORT = process.env.PORT || 4000;
       try {
         const { userId } = req.params;
         const [rows] = await pool.query(
-          'SELECT * FROM events WHERE organizer_id = ? ORDER BY event_date DESC, event_time DESC',
+          `SELECT e.*, 
+           (SELECT COUNT(*) FROM user_interests ui 
+            WHERE ui.event_id = e.id AND ui.interest_level = 'going') as booked
+           FROM events e 
+           WHERE e.organizer_id = ? 
+           ORDER BY e.event_date DESC, e.event_time DESC`,
           [userId]
         );
         console.log(`Fetching events for user ${userId}, found ${rows.length} events`); // Debug log
@@ -337,11 +342,366 @@ const PORT = process.env.PORT || 4000;
       }
     });
 
+    // Get interest counts and revenue for all events organized by a user
+    app.get('/api/events/user/:userId/overview', async (req, res) => {
+      try {
+        const { userId } = req.params;
+        
+        // Get all events organized by this user
+        const [events] = await pool.query(
+          'SELECT id, event_name, ticket_price FROM events WHERE organizer_id = ?',
+          [userId]
+        );
+        
+        if (events.length === 0) {
+          return res.json([]);
+        }
+
+        // Get event IDs for the queries
+        const eventIds = events.map(e => e.id);
+        const placeholders = eventIds.map(() => '?').join(',');
+
+        // Get interest counts for each event
+        const [interestCounts] = await pool.query(
+          `SELECT event_id, 
+            SUM(CASE WHEN interest_level = 'interested' THEN 1 ELSE 0 END) AS interested,
+            SUM(CASE WHEN interest_level = 'not_interested' THEN 1 ELSE 0 END) AS not_interested,
+            SUM(CASE WHEN interest_level = 'going' THEN 1 ELSE 0 END) AS going
+           FROM user_interests 
+           WHERE event_id IN (${placeholders})
+           GROUP BY event_id`,
+          eventIds
+        );
+
+        // Get revenue (sum of verified payments for each event)
+        const [revenueData] = await pool.query(
+          `SELECT event_id, SUM(amount) AS revenue
+           FROM payments 
+           WHERE event_id IN (${placeholders}) AND payment_status = 'verified'
+           GROUP BY event_id`,
+          eventIds
+        );
+
+        // Merge all data together
+        const overview = events.map(event => {
+          const counts = interestCounts.find(c => c.event_id === event.id) || {};
+          const revenue = revenueData.find(r => r.event_id === event.id)?.revenue || 0;
+          
+          return {
+            event_id: event.id,
+            event_name: event.event_name,
+            ticket_price: event.ticket_price,
+            interested: Number(counts.interested || 0),
+            not_interested: Number(counts.not_interested || 0),
+            going: Number(counts.going || 0),
+            revenue: Number(revenue)
+          };
+        });
+
+        res.json(overview);
+      } catch (err) {
+        console.error('Error fetching event overview:', err);
+        res.status(500).json({ error: 'Server error' });
+      }
+    });
+
+    // Get recent activity for a user
+    app.get('/api/users/:userId/recent-activity', async (req, res) => {
+      try {
+        const { userId } = req.params;
+        const activities = [];
+
+        // Get recent events created by user
+        const [createdEvents] = await pool.query(
+          `SELECT id, event_name, created_at 
+           FROM events 
+           WHERE organizer_id = ? 
+           ORDER BY created_at DESC 
+           LIMIT 5`,
+          [userId]
+        );
+
+        createdEvents.forEach(event => {
+          activities.push({
+            type: 'event_created',
+            action: `Created event: ${event.event_name}`,
+            timestamp: event.created_at,
+            color: '#3b82f6' // blue
+          });
+        });
+
+        // Get recent interest markings by user
+        const [interests] = await pool.query(
+          `SELECT ui.interest_level, ui.created_at, e.event_name 
+           FROM user_interests ui
+           JOIN events e ON ui.event_id = e.id
+           WHERE ui.user_id = ? 
+           ORDER BY ui.created_at DESC 
+           LIMIT 5`,
+          [userId]
+        );
+
+        interests.forEach(interest => {
+          let action = '';
+          let color = '';
+          
+          if (interest.interest_level === 'interested') {
+            action = `Marked interested in: ${interest.event_name}`;
+            color = '#f59e0b'; // orange
+          } else if (interest.interest_level === 'going') {
+            action = `Marked going to: ${interest.event_name}`;
+            color = '#10b981'; // green
+          } else if (interest.interest_level === 'not_interested') {
+            action = `Marked not interested in: ${interest.event_name}`;
+            color = '#ef4444'; // red
+          }
+
+          activities.push({
+            type: 'interest_marked',
+            action,
+            timestamp: interest.created_at,
+            color
+          });
+        });
+
+        // Get recent payments by user
+        const [payments] = await pool.query(
+          `SELECT p.amount, p.created_at, p.payment_status, e.event_name 
+           FROM payments p
+           JOIN events e ON p.event_id = e.id
+           WHERE p.user_id = ? 
+           ORDER BY p.created_at DESC 
+           LIMIT 5`,
+          [userId]
+        );
+
+        payments.forEach(payment => {
+          const status = payment.payment_status === 'verified' ? 'Payment verified' : 'Payment pending';
+          activities.push({
+            type: 'payment',
+            action: `${status}: LKR ${payment.amount.toLocaleString()} for ${payment.event_name}`,
+            timestamp: payment.created_at,
+            color: payment.payment_status === 'verified' ? '#10b981' : '#f59e0b'
+          });
+        });
+
+        // Sort all activities by timestamp (most recent first) and take top 5
+        activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        const recentActivities = activities.slice(0, 5);
+
+        // Format the time ago
+        const formatTimeAgo = (timestamp) => {
+          const now = new Date();
+          const then = new Date(timestamp);
+          const diffMs = now - then;
+          const diffMins = Math.floor(diffMs / 60000);
+          const diffHours = Math.floor(diffMs / 3600000);
+          const diffDays = Math.floor(diffMs / 86400000);
+
+          if (diffMins < 60) {
+            return diffMins <= 1 ? '1 minute ago' : `${diffMins} minutes ago`;
+          } else if (diffHours < 24) {
+            return diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`;
+          } else {
+            return diffDays === 1 ? '1 day ago' : `${diffDays} days ago`;
+          }
+        };
+
+        const formattedActivities = recentActivities.map((activity, index) => ({
+          id: index + 1,
+          action: activity.action,
+          time: formatTimeAgo(activity.timestamp),
+          color: activity.color
+        }));
+
+        res.json(formattedActivities);
+      } catch (err) {
+        console.error('Error fetching recent activity:', err);
+        res.status(500).json({ error: 'Server error' });
+      }
+    });
+
+    // Get dashboard stats
+    app.get('/api/dashboard/stats/:userId', async (req, res) => {
+      try {
+        const { userId } = req.params;
+
+        // Get total events count (all users)
+        const [totalEventsResult] = await pool.query('SELECT COUNT(*) as count FROM events');
+        const totalEvents = totalEventsResult[0].count;
+
+        // Get trending event (most interested users)
+        const [trendingResult] = await pool.query(
+          `SELECT e.event_name, COUNT(ui.id) as interest_count
+           FROM events e
+           LEFT JOIN user_interests ui ON e.id = ui.event_id AND ui.interest_level = 'interested'
+           GROUP BY e.id, e.event_name
+           ORDER BY interest_count DESC
+           LIMIT 1`
+        );
+
+        let trendingEvent = { name: 'No events yet', count: 0 };
+        if (trendingResult.length > 0) {
+          trendingEvent = {
+            name: trendingResult[0].event_name,
+            count: trendingResult[0].interest_count || 0
+          };
+        }
+
+        // Get user's organized events count
+        const [userEventsResult] = await pool.query(
+          'SELECT COUNT(*) as count FROM events WHERE organizer_id = ?',
+          [userId]
+        );
+        const userOrganizedEvents = userEventsResult[0].count;
+
+        // Get total members (users who have organized at least one event)
+        const [membersResult] = await pool.query(
+          'SELECT COUNT(DISTINCT organizer_id) as count FROM events'
+        );
+        const totalMembers = membersResult[0].count;
+
+        res.json({
+          totalEvents,
+          trendingEvent,
+          userOrganizedEvents,
+          totalMembers
+        });
+      } catch (err) {
+        console.error('Error fetching dashboard stats:', err);
+        res.status(500).json({ error: 'Server error' });
+      }
+    });
+
+    // Get registration trend data for user's events
+    app.get('/api/users/:userId/registration-trend', async (req, res) => {
+      try {
+        const { userId } = req.params;
+
+        // Get all events organized by this user
+        const [userEvents] = await pool.query(
+          'SELECT id FROM events WHERE organizer_id = ?',
+          [userId]
+        );
+
+        if (userEvents.length === 0) {
+          return res.json([]);
+        }
+
+        const eventIds = userEvents.map(e => e.id);
+
+        // Get interested participants grouped by date for these events
+        const [trendData] = await pool.query(
+          `SELECT DATE(ui.created_at) as date, COUNT(*) as count
+           FROM user_interests ui
+           WHERE ui.event_id IN (?) AND ui.interest_level = 'interested'
+           GROUP BY DATE(ui.created_at)
+           ORDER BY date ASC`,
+          [eventIds]
+        );
+
+        // Format dates for display
+        const formattedData = trendData.map(item => ({
+          date: new Date(item.date).toISOString().split('T')[0],
+          count: Number(item.count)
+        }));
+
+        // If no data, return empty array
+        if (formattedData.length === 0) {
+          return res.json([]);
+        }
+
+        // Fill in missing dates with 0 counts for a smoother chart
+        const startDate = new Date(formattedData[0].date);
+        const endDate = new Date(formattedData[formattedData.length - 1].date);
+        const filledData = [];
+        
+        for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+          const dateStr = d.toISOString().split('T')[0];
+          const existing = formattedData.find(item => item.date === dateStr);
+          filledData.push({
+            date: dateStr,
+            count: existing ? existing.count : 0
+          });
+        }
+
+        res.json(filledData);
+      } catch (err) {
+        console.error('Error fetching registration trend:', err);
+        res.status(500).json({ error: 'Server error' });
+      }
+    });
+
+    // Get attendee insights for a user's organized events
+    app.get('/api/users/:userId/attendee-insights', async (req, res) => {
+      const { userId } = req.params;
+      
+      try {
+        // Get all events organized by this user with attendee counts
+        const [events] = await pool.query(
+          `SELECT 
+            e.id,
+            e.event_name as eventName,
+            COALESCE(COUNT(ui.user_id), 0) as attendees
+          FROM events e
+          LEFT JOIN user_interests ui ON e.id = ui.event_id AND ui.interest_level = 'going'
+          WHERE e.organizer_id = ?
+          GROUP BY e.id, e.event_name
+          ORDER BY attendees DESC`,
+          [userId]
+        );
+
+        // Calculate total attendees
+        const totalAttendees = events.reduce((sum, event) => sum + parseInt(event.attendees), 0);
+
+        res.json({
+          eventDistribution: events,
+          totalAttendees: totalAttendees
+        });
+      } catch (err) {
+        console.error('Error fetching attendee insights:', err);
+        res.status(500).json({ error: 'Server error' });
+      }
+    });
+
+    // Get interested participants for a user's organized events
+    app.get('/api/users/:userId/interested-participants', async (req, res) => {
+      const { userId } = req.params;
+      
+      try {
+        // Get all events organized by this user with interested participant counts
+        const [events] = await pool.query(
+          `SELECT 
+            e.id,
+            e.event_name as eventName,
+            COALESCE(COUNT(ui.user_id), 0) as interestedCount
+          FROM events e
+          LEFT JOIN user_interests ui ON e.id = ui.event_id AND ui.interest_level = 'interested'
+          WHERE e.organizer_id = ?
+          GROUP BY e.id, e.event_name
+          ORDER BY interestedCount DESC`,
+          [userId]
+        );
+
+        res.json({
+          eventInterests: events
+        });
+      } catch (err) {
+        console.error('Error fetching interested participants:', err);
+        res.status(500).json({ error: 'Server error' });
+      }
+    });
+
     // Get all events
     app.get('/api/events', async (req, res) => {
       try {
         const [rows] = await pool.query(
-          'SELECT e.*, u.name as organizer_name FROM events e LEFT JOIN users u ON e.organizer_id = u.id ORDER BY e.event_date DESC, e.event_time DESC'
+          `SELECT e.*, u.name as organizer_name,
+           (SELECT COUNT(*) FROM user_interests ui 
+            WHERE ui.event_id = e.id AND ui.interest_level = 'going') as booked
+           FROM events e 
+           LEFT JOIN users u ON e.organizer_id = u.id 
+           ORDER BY e.event_date DESC, e.event_time DESC`
         );
         res.json(rows); // Return array directly
       } catch (err) {
@@ -355,7 +715,12 @@ const PORT = process.env.PORT || 4000;
       try {
         const { id } = req.params;
         const [rows] = await pool.query(
-          'SELECT e.*, u.name as organizer_name FROM events e LEFT JOIN users u ON e.organizer_id = u.id WHERE e.id = ?',
+          `SELECT e.*, u.name as organizer_name,
+           (SELECT COUNT(*) FROM user_interests ui 
+            WHERE ui.event_id = e.id AND ui.interest_level = 'going') as booked
+           FROM events e 
+           LEFT JOIN users u ON e.organizer_id = u.id 
+           WHERE e.id = ?`,
           [id]
         );
         if (!rows.length) return res.status(404).json({ error: 'Event not found' });

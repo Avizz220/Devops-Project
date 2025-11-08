@@ -11,6 +11,7 @@ const EventDetails = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [registrationTrendData, setRegistrationTrendData] = useState([]);
   
   // Edit form states
   const [editEventName, setEditEventName] = useState('');
@@ -97,6 +98,32 @@ const EventDetails = () => {
 
     fetchMyEvents();
   }, []);
+
+  // Fetch registration trend data for the user's events
+  useEffect(() => {
+    const fetchRegistrationTrend = async () => {
+      try {
+        const userStr = localStorage.getItem(STORAGE_KEYS.USER);
+        if (!userStr) return;
+
+        const user = JSON.parse(userStr);
+        if (!user || !user.id) return;
+
+        const response = await fetch(`${API_BASE_URL}/api/users/${user.id}/registration-trend`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch registration trend');
+        }
+
+        const data = await response.json();
+        setRegistrationTrendData(data);
+      } catch (error) {
+        console.error('Error fetching registration trend:', error);
+        setRegistrationTrendData([]);
+      }
+    };
+
+    fetchRegistrationTrend();
+  }, [myEvents]);
 
   // Format date for display
   const formatDate = (dateString) => {
@@ -514,43 +541,56 @@ const EventDetails = () => {
             {/* Registration Trend Chart */}
             <div className="chart-box">
               <h3 className="chart-title">Registration Trend</h3>
-              <div className="line-chart-container">
-                <div className="chart-y-axis">
-                  <span>280</span>
-                  <span>210</span>
-                  <span>140</span>
-                  <span>70</span>
-                  <span>0</span>
-                </div>
-                <div className="line-chart-content">
-                  <svg className="line-chart-svg" viewBox="0 0 600 200" preserveAspectRatio="none">
-                    <defs>
-                      <linearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor="rgba(99, 102, 241, 0.3)" />
-                        <stop offset="100%" stopColor="rgba(99, 102, 241, 0)" />
-                      </linearGradient>
-                    </defs>
-                    <path
-                      d="M 0 200 L 0 200 L 100 180 L 200 150 L 300 120 L 400 90 L 500 70 L 600 70 L 600 200 Z"
-                      fill="url(#lineGradient)"
-                    />
-                    <path
-                      d="M 0 200 L 100 180 L 200 150 L 300 120 L 400 90 L 500 70"
-                      fill="none"
-                      stroke="#6366f1"
-                      strokeWidth="3"
-                    />
-                  </svg>
-                  <div className="line-chart-x-axis">
-                    <span>2025-01-01</span>
-                    <span>2025-01-15</span>
-                    <span>2025-02-01</span>
-                    <span>2025-02-15</span>
-                    <span>2025-03-01</span>
-                    <span>2025-03-15</span>
+              {registrationTrendData.length > 0 ? (
+                <div className="line-chart-container">
+                  <div className="chart-y-axis">
+                    {(() => {
+                      const maxValue = Math.max(...registrationTrendData.map(d => d.count), 1);
+                      const step = Math.ceil(maxValue / 4);
+                      return [step * 4, step * 3, step * 2, step, 0].map((val, idx) => (
+                        <span key={idx}>{val}</span>
+                      ));
+                    })()}
+                  </div>
+                  <div className="line-chart-content">
+                    <svg className="line-chart-svg" viewBox="0 0 600 200" preserveAspectRatio="none">
+                      <defs>
+                        <linearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                          <stop offset="0%" stopColor="rgba(99, 102, 241, 0.3)" />
+                          <stop offset="100%" stopColor="rgba(99, 102, 241, 0)" />
+                        </linearGradient>
+                      </defs>
+                      {(() => {
+                        const maxValue = Math.max(...registrationTrendData.map(d => d.count), 1);
+                        const points = registrationTrendData.map((d, i) => {
+                          const x = (i / (registrationTrendData.length - 1)) * 600;
+                          const y = 200 - (d.count / maxValue) * 200;
+                          return `${x} ${y}`;
+                        }).join(' L ');
+                        
+                        const areaPath = `M 0 200 L ${points} L 600 200 Z`;
+                        const linePath = `M ${points}`;
+                        
+                        return (
+                          <>
+                            <path d={areaPath} fill="url(#lineGradient)" />
+                            <path d={linePath} fill="none" stroke="#6366f1" strokeWidth="3" />
+                          </>
+                        );
+                      })()}
+                    </svg>
+                    <div className="line-chart-x-axis">
+                      {registrationTrendData.map((d, idx) => (
+                        <span key={idx}>{d.date}</span>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="empty-chart-state">
+                  <p>No registration data available yet. Users will appear here when they mark interest in your events.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
