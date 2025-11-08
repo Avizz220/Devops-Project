@@ -252,12 +252,6 @@ const Settings = () => {
           👤 Profile
         </button>
         <button
-          className={`tab-btn ${activeTab === 'security' ? 'active' : ''}`}
-          onClick={() => setActiveTab('security')}
-        >
-          🔒 Security
-        </button>
-        <button
           className={`tab-btn ${activeTab === 'events' ? 'active' : ''}`}
           onClick={() => setActiveTab('events')}
         >
@@ -268,7 +262,8 @@ const Settings = () => {
       {/* Profile Tab */}
       {activeTab === 'profile' && (
         <div className="settings-content">
-          <div className="profile-section">
+          <div className="profile-security-grid">
+            {/* Profile Card */}
             <div className="profile-card">
               <div className="profile-header-section">
                 <h2>Profile Information</h2>
@@ -389,14 +384,8 @@ const Settings = () => {
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* Security Tab */}
-      {activeTab === 'security' && (
-        <div className="settings-content">
-          <div className="security-section">
+            {/* Password Change Card */}
             <div className="security-card">
               <h2>🔒 Reset Password</h2>
               <p className="security-description">
@@ -469,18 +458,6 @@ const Settings = () => {
                   🔄 Update Password
                 </button>
               </form>
-            </div>
-
-            {/* Additional Security Info */}
-            <div className="security-tips">
-              <h3>🛡️ Password Tips</h3>
-              <ul>
-                <li>Use a combination of uppercase and lowercase letters</li>
-                <li>Include numbers and special characters</li>
-                <li>Avoid using personal information</li>
-                <li>Don't reuse passwords from other accounts</li>
-                <li>Change your password regularly</li>
-              </ul>
             </div>
           </div>
         </div>
