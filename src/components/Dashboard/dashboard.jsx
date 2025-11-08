@@ -358,18 +358,6 @@ const Dashboard = () => {
           </button>
         </nav>
 
-        <div className="sidebar-stats">
-          <h4>Quick Stats</h4>
-          <div className="quick-stat">
-            <span>Active Events</span>
-            <strong>125</strong>
-          </div>
-          <div className="quick-stat">
-            <span>Total Revenue</span>
-            <strong>$2.85M</strong>
-          </div>
-        </div>
-
         <button className="sidebar-logout" onClick={handleLogout}>
           <span className="nav-icon">🚪</span>
           <span>Logout</span>

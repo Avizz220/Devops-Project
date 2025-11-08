@@ -11,12 +11,28 @@ const AttendeeInsights = () => {
   const [participantsList, setParticipantsList] = useState([]);
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [currentEventIndex, setCurrentEventIndex] = useState(0);
+  const [organizedEvents, setOrganizedEvents] = useState([]);
 
   useEffect(() => {
     fetchAttendeeInsights();
     fetchInterestedParticipants();
     fetchParticipantsList();
+    fetchOrganizedEvents();
   }, []);
+
+  useEffect(() => {
+    // Auto-rotate events every 3 seconds
+    if (organizedEvents.length > 0) {
+      const interval = setInterval(() => {
+        setCurrentEventIndex((prevIndex) => 
+          (prevIndex + 1) % organizedEvents.length
+        );
+      }, 3000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [organizedEvents]);
 
   const fetchAttendeeInsights = async () => {
     try {
@@ -105,6 +121,28 @@ const AttendeeInsights = () => {
     }
   };
 
+  const fetchOrganizedEvents = async () => {
+    try {
+      const userStr = localStorage.getItem(STORAGE_KEYS.USER);
+      if (!userStr) return;
+
+      const user = JSON.parse(userStr);
+      if (!user || !user.id) return;
+
+      const response = await fetch(`${API_BASE_URL}/api/events/user/${user.id}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch organized events');
+      }
+
+      const data = await response.json();
+      console.log('Organized events data:', data);
+      setOrganizedEvents(data || []);
+    } catch (error) {
+      console.error('Error fetching organized events:', error);
+      setOrganizedEvents([]);
+    }
+  };
+
   const handleRowClick = (participant) => {
     setSelectedProfile(participant);
     setShowProfileModal(true);
@@ -113,6 +151,18 @@ const AttendeeInsights = () => {
   const closeProfileModal = () => {
     setShowProfileModal(false);
     setSelectedProfile(null);
+  };
+
+  const handlePrevEvent = () => {
+    setCurrentEventIndex((prevIndex) => 
+      prevIndex === 0 ? organizedEvents.length - 1 : prevIndex - 1
+    );
+  };
+
+  const handleNextEvent = () => {
+    setCurrentEventIndex((prevIndex) => 
+      (prevIndex + 1) % organizedEvents.length
+    );
   };
 
   // Calculate pie chart segments
@@ -244,33 +294,81 @@ const AttendeeInsights = () => {
 
       {/* Charts Section */}
       <div className="insights-charts-grid">
-        {/* Age Distribution */}
-        <div className="insights-chart-card">
-          <h3 className="insights-chart-title">Age Distribution</h3>
-          <div className="age-chart">
-            <div className="age-chart-y-axis">
-              <span>2800</span>
-              <span>2100</span>
-              <span>1400</span>
-              <span>700</span>
-              <span>0</span>
+        {/* Event Showcase Carousel */}
+        <div className="insights-chart-card event-carousel-card">
+          <h3 className="insights-chart-title">Your Organized Events</h3>
+          {organizedEvents.length === 0 ? (
+            <div className="event-carousel-empty">
+              <p>No events organized yet</p>
             </div>
-            <div className="age-chart-content">
-              {ageDistribution.map((item, index) => (
-                <div key={index} className="age-bar-column">
-                  <div className="age-bar-wrapper">
+          ) : (
+            <div className="event-carousel-container">
+              <button 
+                className="carousel-nav-btn carousel-prev" 
+                onClick={handlePrevEvent}
+                aria-label="Previous event"
+              >
+                ‹
+              </button>
+              
+              <div className="event-carousel-track">
+                {organizedEvents.map((event, index) => {
+                  const offset = index - currentEventIndex;
+                  const isActive = index === currentEventIndex;
+                  
+                  return (
                     <div
-                      className="age-bar"
-                      style={{ height: `${(item.count / maxAge) * 100}%` }}
+                      key={event.id}
+                      className={`event-carousel-item ${isActive ? 'active' : ''}`}
+                      style={{
+                        transform: `translateX(${offset * 100}%) scale(${isActive ? 1 : 0.8})`,
+                        opacity: Math.abs(offset) > 1 ? 0 : isActive ? 1 : 0.5,
+                        zIndex: isActive ? 10 : 1
+                      }}
                     >
-                      <div className="age-bar-tooltip">{item.count.toLocaleString()}</div>
+                      <div className="event-carousel-image">
+                        {event.photo_url ? (
+                          <img 
+                            src={`${API_BASE_URL}${event.photo_url}`} 
+                            alt={event.event_name}
+                          />
+                        ) : (
+                          <div className="event-placeholder-image">
+                            <span>📅</span>
+                          </div>
+                        )}
+                        <div className="event-carousel-overlay">
+                          <h4 className="event-carousel-title">{event.event_name}</h4>
+                          <p className="event-carousel-location">📍 {event.location}</p>
+                          <p className="event-carousel-tagline">Let your dreams come true</p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="age-bar-label">{item.range}</div>
-                </div>
-              ))}
+                  );
+                })}
+              </div>
+
+              <button 
+                className="carousel-nav-btn carousel-next" 
+                onClick={handleNextEvent}
+                aria-label="Next event"
+              >
+                ›
+              </button>
+
+              {/* Carousel Indicators */}
+              <div className="carousel-indicators">
+                {organizedEvents.map((_, index) => (
+                  <button
+                    key={index}
+                    className={`carousel-indicator ${index === currentEventIndex ? 'active' : ''}`}
+                    onClick={() => setCurrentEventIndex(index)}
+                    aria-label={`Go to event ${index + 1}`}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Event Attendee Distribution */}
@@ -457,12 +555,6 @@ const AttendeeInsights = () => {
                   {new Date(selectedProfile.createdAt).toLocaleString()}
                 </span>
               </div>
-              {selectedProfile.phone && (
-                <div className="profile-info-row">
-                  <span className="profile-info-label">Phone:</span>
-                  <span className="profile-info-value">{selectedProfile.phone}</span>
-                </div>
-              )}
             </div>
           </div>
         </div>

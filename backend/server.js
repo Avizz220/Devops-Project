@@ -692,6 +692,39 @@ const PORT = process.env.PORT || 4000;
       }
     });
 
+    // Get participants list for a user's organized events
+    app.get('/api/users/:userId/participants-list', async (req, res) => {
+      const { userId } = req.params;
+      
+      try {
+        // Get all participants for events organized by this user
+        const [participants] = await pool.query(
+          `SELECT 
+            u.id as userId,
+            u.name as userName,
+            u.email as userEmail,
+            u.profile_picture as profilePicture,
+            e.id as eventId,
+            e.event_name as eventName,
+            ui.interest_level as interestLevel,
+            ui.created_at as createdAt
+          FROM user_interests ui
+          JOIN users u ON ui.user_id = u.id
+          JOIN events e ON ui.event_id = e.id
+          WHERE e.organizer_id = ?
+          ORDER BY ui.created_at DESC`,
+          [userId]
+        );
+
+        res.json({
+          participants: participants
+        });
+      } catch (err) {
+        console.error('Error fetching participants list:', err);
+        res.status(500).json({ error: 'Server error' });
+      }
+    });
+
     // Get all events
     app.get('/api/events', async (req, res) => {
       try {

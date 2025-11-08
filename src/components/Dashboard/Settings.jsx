@@ -5,7 +5,6 @@ import './Settings.css';
 
 const Settings = () => {
   const [user, setUser] = useState(null);
-  const [activeTab, setActiveTab] = useState('profile');
   const [profileImage, setProfileImage] = useState(null);
   const fileInputRef = useRef(null);
 
@@ -318,25 +317,8 @@ const Settings = () => {
         <p className="settings-subtitle">Manage your account preferences and security</p>
       </div>
 
-      {/* Tabs */}
-      <div className="settings-tabs">
-        <button
-          className={`tab-btn ${activeTab === 'profile' ? 'active' : ''}`}
-          onClick={() => setActiveTab('profile')}
-        >
-          👤 Profile
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'events' ? 'active' : ''}`}
-          onClick={() => setActiveTab('events')}
-        >
-          📅 My Events
-        </button>
-      </div>
-
-      {/* Profile Tab */}
-      {activeTab === 'profile' && (
-        <div className="settings-content">
+      {/* Profile Content */}
+      <div className="settings-content">
           <div className="profile-security-grid">
             {/* Profile Card */}
             <div className="profile-card">
@@ -536,113 +518,6 @@ const Settings = () => {
             </div>
           </div>
         </div>
-      )}
-
-      {/* My Events Tab */}
-      {activeTab === 'events' && (
-        <div className="settings-content">
-          <div className="events-section">
-            {/* Organized Events */}
-            <div className="events-card">
-              <div className="events-header">
-                <h2>📋 Organized Events</h2>
-                <span className="events-count">12 Events</span>
-              </div>
-              <div className="events-stats">
-                <div className="stat-item">
-                  <span className="stat-icon">✅</span>
-                  <div>
-                    <div className="stat-number">8</div>
-                    <div className="stat-label">Completed</div>
-                  </div>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-icon">🔄</span>
-                  <div>
-                    <div className="stat-number">3</div>
-                    <div className="stat-label">Ongoing</div>
-                  </div>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-icon">📅</span>
-                  <div>
-                    <div className="stat-number">1</div>
-                    <div className="stat-label">Upcoming</div>
-                  </div>
-                </div>
-              </div>
-              <button className="view-all-btn">View All Organized Events →</button>
-            </div>
-
-            {/* Participating Events */}
-            <div className="events-card">
-              <div className="events-header">
-                <h2>🎫 Participating Events</h2>
-                <span className="events-count">7 Events</span>
-              </div>
-              <div className="events-stats">
-                <div className="stat-item">
-                  <span className="stat-icon">✅</span>
-                  <div>
-                    <div className="stat-number">4</div>
-                    <div className="stat-label">Attended</div>
-                  </div>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-icon">🎟️</span>
-                  <div>
-                    <div className="stat-number">2</div>
-                    <div className="stat-label">Registered</div>
-                  </div>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-icon">⏳</span>
-                  <div>
-                    <div className="stat-number">1</div>
-                    <div className="stat-label">Pending</div>
-                  </div>
-                </div>
-              </div>
-              <button className="view-all-btn">View All Participating Events →</button>
-            </div>
-
-            {/* Expected/Wishlist Events */}
-            <div className="events-card">
-              <div className="events-header">
-                <h2>⭐ Expected to Participate</h2>
-                <span className="events-count">5 Events</span>
-              </div>
-              <div className="expected-events-list">
-                <div className="expected-event-item">
-                  <span className="event-icon">🎵</span>
-                  <div className="event-info">
-                    <div className="event-name">Summer Music Festival 2025</div>
-                    <div className="event-date">Dec 15, 2025</div>
-                  </div>
-                  <button className="register-btn">Register</button>
-                </div>
-                <div className="expected-event-item">
-                  <span className="event-icon">💻</span>
-                  <div className="event-info">
-                    <div className="event-name">Tech Innovation Summit</div>
-                    <div className="event-date">Dec 20, 2025</div>
-                  </div>
-                  <button className="register-btn">Register</button>
-                </div>
-                <div className="expected-event-item">
-                  <span className="event-icon">🎨</span>
-                  <div className="event-info">
-                    <div className="event-name">Art & Design Expo</div>
-                    <div className="event-date">Jan 5, 2026</div>
-                  </div>
-                  <button className="register-btn">Register</button>
-                </div>
-              </div>
-              <button className="view-all-btn">Browse More Events →</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
