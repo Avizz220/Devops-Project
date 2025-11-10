@@ -565,7 +565,7 @@ const Dashboard = () => {
                     </div>
                   )}
                 </div>
-                <button className="view-all-notifications">View All Notifications</button>
+                <button className="view-all-notifications">view All Notifications</button>
               </div>
             </div>
           </>
