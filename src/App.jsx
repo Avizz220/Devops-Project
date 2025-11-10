@@ -4,6 +4,7 @@ import Login from './components/Login/login';
 import Signup from './components/Signup/signup';
 import Home from './components/Home/home';
 import Dashboard from './components/Dashboard/dashboard';
+import LandingPage from './components/Landing/landing';
 import { STORAGE_KEYS } from './config';
 
 // Create Auth Context
@@ -23,9 +24,38 @@ const App = () => {
   
   useEffect(() => {
     // Check if user is logged in on mount
-    const user = localStorage.getItem(STORAGE_KEYS.USER);
-    setIsLoggedIn(!!user);
-    setLoading(false);
+    try {
+      const userString = localStorage.getItem(STORAGE_KEYS.USER);
+      console.log('Checking user login status:', userString ? 'Logged in' : 'Not logged in');
+      
+      if (userString) {
+        // Validate that the user data is actually valid JSON and has required fields
+        try {
+          const user = JSON.parse(userString);
+          if (user && user.id && user.email) {
+            console.log('Valid user found:', user.email);
+            setIsLoggedIn(true);
+          } else {
+            console.log('Invalid user data, clearing localStorage');
+            localStorage.removeItem(STORAGE_KEYS.USER);
+            setIsLoggedIn(false);
+          }
+        } catch (parseError) {
+          console.error('Error parsing user data:', parseError);
+          localStorage.removeItem(STORAGE_KEYS.USER);
+          setIsLoggedIn(false);
+        }
+      } else {
+        console.log('No user data found in localStorage');
+        setIsLoggedIn(false);
+      }
+    } catch (error) {
+      console.error('Error checking login status:', error);
+      localStorage.removeItem(STORAGE_KEYS.USER);
+      setIsLoggedIn(false);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   const login = (userData) => {
@@ -34,6 +64,7 @@ const App = () => {
   };
 
   const logout = () => {
+    console.log('Logging out user');
     localStorage.removeItem(STORAGE_KEYS.USER);
     setIsLoggedIn(false);
   };
@@ -54,17 +85,66 @@ const App = () => {
       </div>
     );
   }
+
+  console.log('Rendering App - isLoggedIn:', isLoggedIn, 'loading:', loading);
   
   return (
     <AuthContext.Provider value={{ isLoggedIn, login, logout }}>
       <Router>
         <Routes>
-          <Route path="/login" element={isLoggedIn ? <Navigate to="/" replace /> : <Login />} />
-          <Route path="/signup" element={isLoggedIn ? <Navigate to="/" replace /> : <Signup />} />
-          {/* Root goes to Dashboard for logged-in users */}
-          <Route path="/" element={isLoggedIn ? <Dashboard /> : <Navigate to="/login" replace />} />
-          <Route path="/home" element={isLoggedIn ? <Home /> : <Navigate to="/login" replace />} />
-          <Route path="*" element={<Navigate to={isLoggedIn ? "/" : "/login"} replace />} />
+          {/* Landing page for non-authenticated users */}
+          <Route 
+            path="/" 
+            element={
+              isLoggedIn ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <LandingPage />
+              )
+            } 
+          />
+          <Route 
+            path="/login" 
+            element={
+              isLoggedIn ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <Login />
+              )
+            } 
+          />
+          <Route 
+            path="/signup" 
+            element={
+              isLoggedIn ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <Signup />
+              )
+            } 
+          />
+          {/* Dashboard for logged-in users */}
+          <Route 
+            path="/dashboard" 
+            element={
+              isLoggedIn ? (
+                <Dashboard />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            } 
+          />
+          <Route 
+            path="/home" 
+            element={
+              isLoggedIn ? (
+                <Home />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            } 
+          />
+          <Route path="*" element={<Navigate to={isLoggedIn ? "/dashboard" : "/"} replace />} />
         </Routes>
       </Router>
     </AuthContext.Provider>

@@ -1,6 +1,7 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const webpack = require('webpack');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 module.exports = {
   entry: './src/index.jsx',
@@ -48,11 +49,28 @@ module.exports = {
     new webpack.DefinePlugin({
       'process.env.REACT_APP_API_URL': JSON.stringify(process.env.REACT_APP_API_URL || ''),
     }),
+    new CopyWebpackPlugin({
+      patterns: [
+        {
+          from: 'public',
+          to: '',
+          globOptions: {
+            ignore: ['**/index.html'], // index.html is handled by HtmlWebpackPlugin
+          },
+        },
+      ],
+    }),
   ],
   devServer: {
-    static: {
-      directory: path.join(__dirname, 'public'),
-    },
+    static: [
+      {
+        directory: path.join(__dirname, 'public'),
+      },
+      {
+        directory: path.join(__dirname, 'public'),
+        publicPath: '/',
+      }
+    ],
     historyApiFallback: true,
     port: 3000,
     open: true,
