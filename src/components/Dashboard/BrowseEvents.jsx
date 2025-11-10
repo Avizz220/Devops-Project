@@ -930,7 +930,7 @@ const BrowseEvents = () => {
                       <option value="Nations Trust Bank">Nations Trust Bank (NTB)</option>
                       <option value="DFCC Bank">DFCC Bank</option>
                       <option value="Seylan Bank">Seylan Bank</option>
-                      <option value="Pan Asia Bank">Pan Asia Bank</option>
+                      <option value="Pan Asia Bank">Pan Asi Bank</option>
                       <option value="Union Bank">Union Bank</option>
                       <option value="Other">Other</option>
                     </select>
