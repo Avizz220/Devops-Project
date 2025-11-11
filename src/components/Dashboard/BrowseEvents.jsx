@@ -519,7 +519,7 @@ const BrowseEvents = () => {
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
           >
-            <option value="date">Sort by Date</option>
+            <option value="date">Sort by Dat</option>
             <option value="price">Sort by Price</option>
             <option value="capacity">Sort by Capacity</option>
           </select>
