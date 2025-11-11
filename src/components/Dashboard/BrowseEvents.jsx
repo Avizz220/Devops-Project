@@ -922,7 +922,7 @@ const BrowseEvents = () => {
                     >
                       <option value="">Select your bank</option>
                       <option value="NSB (National Savings Bank)">NSB (National Savings Bank)</option>
-                      <option value="Commercial Bank">Commercial Bank</option>
+                      <option value="Commercial Bank">Commercial Bnk</option>
                       <option value="People's Bank">People's Bank</option>
                       <option value="Bank of Ceylon">Bank of Ceylon</option>
                       <option value="Sampath Bank">Sampath Bank</option>
