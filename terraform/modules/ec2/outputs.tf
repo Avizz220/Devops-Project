@@ -9,8 +9,8 @@ output "private_ips" {
 }
 
 output "public_ips" {
-  description = "EC2 public IP addresses (Elastic IPs)"
-  value       = aws_eip.app[*].public_ip
+  description = "EC2 public IP addresses"
+  value       = aws_instance.app[*].public_ip
 }
 
 output "instance_profile_arn" {

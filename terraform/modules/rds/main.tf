@@ -20,13 +20,13 @@ resource "aws_db_instance" "mysql" {
   identifier = "${var.project_name}-mysql-${var.environment}"
 
   # Engine configuration
-  engine               = "mysql"
-  engine_version       = "8.0"
-  instance_class       = var.db_instance_class
-  allocated_storage    = 20
+  engine                = "mysql"
+  engine_version        = "8.0"
+  instance_class        = var.db_instance_class
+  allocated_storage     = 20
   max_allocated_storage = 100
-  storage_type         = "gp3"
-  storage_encrypted    = true
+  storage_type          = "gp3"
+  storage_encrypted     = true
 
   # Database configuration
   db_name  = var.db_name
@@ -41,17 +41,17 @@ resource "aws_db_instance" "mysql" {
   multi_az               = false # Set to true for production
 
   # Backup configuration
-  backup_retention_period = 7
-  backup_window          = "03:00-04:00"
-  maintenance_window     = "mon:04:00-mon:05:00"
-  
+  backup_retention_period = 0
+  backup_window           = "03:00-04:00"
+  maintenance_window      = "mon:04:00-mon:05:00"
+
   # Performance configuration
   performance_insights_enabled = false
-  monitoring_interval         = 0
+  monitoring_interval          = 0
 
   # Deletion protection
-  deletion_protection = false # Set to true for production
-  skip_final_snapshot = true  # Set to false for production
+  deletion_protection       = false # Set to true for production
+  skip_final_snapshot       = true  # Set to false for production
   final_snapshot_identifier = "${var.project_name}-mysql-final-snapshot-${var.environment}"
 
   # Auto minor version upgrade

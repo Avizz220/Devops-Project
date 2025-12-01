@@ -63,16 +63,16 @@ resource "aws_iam_instance_profile" "ec2" {
 # User Data Script to install Docker and run containers
 locals {
   user_data = templatefile("${path.module}/user-data.sh", {
-    dockerhub_username   = var.dockerhub_username
-    frontend_image_tag   = var.frontend_image_tag
-    backend_image_tag    = var.backend_image_tag
-    db_host             = var.db_host
-    db_port             = var.db_port
-    db_name             = var.db_name
-    db_user             = var.db_user
-    db_password         = var.db_password
-    backend_port        = var.backend_port
-    project_name        = var.project_name
+    dockerhub_username = var.dockerhub_username
+    frontend_image_tag = var.frontend_image_tag
+    backend_image_tag  = var.backend_image_tag
+    db_host            = var.db_host
+    db_port            = var.db_port
+    db_name            = var.db_name
+    db_user            = var.db_user
+    db_password        = var.db_password
+    backend_port       = var.backend_port
+    project_name       = var.project_name
   })
 }
 
@@ -82,7 +82,7 @@ resource "aws_instance" "app" {
   ami                    = data.aws_ami.amazon_linux.id
   instance_type          = var.instance_type
   key_name               = var.key_name
-  subnet_id              = var.private_subnet_ids[count.index % length(var.private_subnet_ids)]
+  subnet_id              = var.public_subnet_ids[count.index % length(var.public_subnet_ids)]
   vpc_security_group_ids = [var.security_group_id]
   iam_instance_profile   = aws_iam_instance_profile.ec2.name
 
@@ -110,13 +110,3 @@ resource "aws_instance" "app" {
   }
 }
 
-# Elastic IPs for EC2 instances (optional, for direct SSH access)
-resource "aws_eip" "app" {
-  count    = var.instance_count
-  instance = aws_instance.app[count.index].id
-  domain   = "vpc"
-
-  tags = {
-    Name = "${var.project_name}-app-eip-${count.index + 1}-${var.environment}"
-  }
-}

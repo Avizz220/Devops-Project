@@ -1,3 +1,5 @@
+#!/bin/bash
+cat > ~/Devops_project/Devops_Project/terraform/outputs.tf << 'OUTEOF'
 output "vpc_id" {
   description = "VPC ID"
   value       = module.vpc.vpc_id
@@ -45,3 +47,4 @@ output "deployment_instructions" {
     SSH: ssh -i ~/.ssh/${var.key_name}.pem ec2-user@${module.ec2.public_ips[0]}
   EOT
 }
+OUTEOF
