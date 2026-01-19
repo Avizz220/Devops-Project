@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
 
 env:
-  # Replace these with your Docker Hub username
+  # Replace these with my Docker Hub username
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
 
 jobs:
