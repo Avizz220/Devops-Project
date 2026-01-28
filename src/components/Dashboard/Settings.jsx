@@ -194,8 +194,7 @@ const Settings = () => {
 
     try {
       // Call backend API to reset password
-      const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000';
-      const response = await fetch(`${API_BASE}/api/auth/reset-password`, {
+      const response = await fetch('/api/auth/reset-password', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

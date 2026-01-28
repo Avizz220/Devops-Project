@@ -10,7 +10,8 @@
   },
   "scripts": {
     "start": "webpack serve --mode development --open",
-    "build": "webpack --mode production"
+    "build": "webpack --mode production",
+    "build:ec2": "NODE_ENV=production webpack --mode production"
   },
   "devDependencies": {
     "@babel/core": "^7.28.4",

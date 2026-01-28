@@ -1,7 +1,5 @@
-// API configuration
-// Use the nginx proxy path for API calls
-const REACT_APP_API_URL = process.env.REACT_APP_API_URL || 'http://44.200.5.19:4000';
-export const API_BASE_URL = REACT_APP_API_URL;
+// API configuration - use relative path for nginx proxy
+export const API_BASE_URL = '';
 
 // API endpoints
 export const API_ENDPOINTS = {
