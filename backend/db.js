@@ -11,7 +11,6 @@ const config = {
 
 async function initDB() {
   try {
-    // Connect without database first
     const connection = await mysql.createConnection({
       host: config.host,
       port: config.port,
@@ -20,11 +19,9 @@ async function initDB() {
       multipleStatements: true,
     });
 
-    // Create database if not exists
     await connection.query(`CREATE DATABASE IF NOT EXISTS \`${config.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
     await connection.query(`USE \`${config.database}\`;`);
 
-    // Create users table if not exists
     const createUsers = `
     CREATE TABLE IF NOT EXISTS users (
       id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -46,7 +43,6 @@ async function initDB() {
   }
 }
 
-// Create a pool for connection reuse
 const pool = mysql.createPool({
   host: config.host,
   port: config.port,

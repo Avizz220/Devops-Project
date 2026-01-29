@@ -55,7 +55,7 @@ module.exports = {
           from: 'public',
           to: '',
           globOptions: {
-            ignore: ['**/index.html'], // index.html is handled by HtmlWebpackPlugin
+            ignore: ['**/index.html'],
           },
         },
       ],

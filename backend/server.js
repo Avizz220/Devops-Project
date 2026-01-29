@@ -6,19 +6,14 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { initDB, pool, config } = require('./db');
-
 const app = express();
 app.use(express.json());
 app.use(cors({
-  origin: '*', // In production, specify your frontend domain
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
-
-// Serve uploaded images
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// Configure multer for image uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = path.join(__dirname, 'uploads');
@@ -33,10 +28,9 @@ const storage = multer.diskStorage({
     cb(null, prefix + uniqueSuffix + path.extname(file.originalname));
   }
 });
-
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -47,15 +41,10 @@ const upload = multer({
     cb(new Error('Only image files are allowed!'));
   }
 });
-
 const PORT = process.env.PORT || 4000;
-
 (async () => {
   try {
-    // Initialize database and tables
     const dbInitialized = await initDB();
-
-    // Root route
     app.get('/', (req, res) => {
       res.json({ 
         message: 'Community Events Platform API', 
@@ -63,40 +52,29 @@ const PORT = process.env.PORT || 4000;
         endpoints: ['/api/auth/signup', '/api/auth/login', '/api/ping', '/api/health']
       });
     });
-
-    // Signup
     app.post('/api/auth/signup', async (req, res) => {
       try {
         const { name, email, password, role } = req.body;
         if (!name || !email || !password || !role) return res.status(400).json({ error: 'Missing fields' });
-
         const [rows] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
         if (rows.length) return res.status(400).json({ error: 'Email already registered' });
-
         const hashed = await bcrypt.hash(password, 10);
         const [result] = await pool.query('INSERT INTO users (name,email,password,role) VALUES (?,?,?,?)', [name, email, hashed, role]);
-
         res.json({ id: result.insertId, name, email, role });
       } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Login
     app.post('/api/auth/login', async (req, res) => {
       try {
         const { email, password } = req.body;
         if (!email || !password) return res.status(400).json({ error: 'Missing fields' });
-
         const [rows] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
         if (!rows.length) return res.status(401).json({ error: 'Invalid credentials' });
-
         const user = rows[0];
         const ok = await bcrypt.compare(password, user.password);
         if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
-
-        // Return basic user info including profile picture
         res.json({ 
           id: user.id, 
           name: user.name, 
@@ -110,61 +88,43 @@ const PORT = process.env.PORT || 4000;
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Reset password - verifies current password then updates to new hashed password
     app.put('/api/auth/reset-password', async (req, res) => {
       try {
         const { userId, currentPassword, newPassword } = req.body;
         if (!userId || !currentPassword || !newPassword) {
           return res.status(400).json({ error: 'Missing fields' });
         }
-
         const [rows] = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
         if (!rows.length) return res.status(404).json({ error: 'User not found' });
-
         const user = rows[0];
         const valid = await bcrypt.compare(currentPassword, user.password);
         if (!valid) return res.status(401).json({ error: 'Current password is incorrect' });
-
-        // Hash new password and update
         const hashed = await bcrypt.hash(newPassword, 10);
         await pool.query('UPDATE users SET password = ? WHERE id = ?', [hashed, userId]);
-
         res.json({ message: 'Password updated successfully' });
       } catch (err) {
         console.error('Error resetting password:', err);
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Upload/Update Profile Picture
     app.post('/api/users/:id/profile-picture', upload.single('profile_picture'), async (req, res) => {
       try {
         const { id } = req.params;
-        
         if (!req.file) {
           return res.status(400).json({ error: 'No file uploaded' });
         }
-
-        // Check if user exists
         const [existingUser] = await pool.query('SELECT profile_picture FROM users WHERE id = ?', [id]);
         if (!existingUser.length) {
           return res.status(404).json({ error: 'User not found' });
         }
-
         const profile_picture_url = `/uploads/${req.file.filename}`;
-
-        // Delete old profile picture if it exists
         if (existingUser[0].profile_picture) {
           const oldPhotoPath = path.join(__dirname, existingUser[0].profile_picture);
           if (fs.existsSync(oldPhotoPath)) {
             fs.unlinkSync(oldPhotoPath);
           }
         }
-
-        // Update user's profile picture in database
         await pool.query('UPDATE users SET profile_picture = ? WHERE id = ?', [profile_picture_url, id]);
-
         res.json({ 
           message: 'Profile picture updated successfully',
           profile_picture: profile_picture_url
@@ -174,70 +134,47 @@ const PORT = process.env.PORT || 4000;
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Delete Profile Picture
     app.delete('/api/users/:id/profile-picture', async (req, res) => {
       try {
         const { id } = req.params;
-        
-        // Get current profile picture
         const [existingUser] = await pool.query('SELECT profile_picture FROM users WHERE id = ?', [id]);
         if (!existingUser.length) {
           return res.status(404).json({ error: 'User not found' });
         }
-
-        // Delete file if it exists
         if (existingUser[0].profile_picture) {
           const photoPath = path.join(__dirname, existingUser[0].profile_picture);
           if (fs.existsSync(photoPath)) {
             fs.unlinkSync(photoPath);
           }
         }
-
-        // Remove profile picture from database
         await pool.query('UPDATE users SET profile_picture = NULL WHERE id = ?', [id]);
-
         res.json({ message: 'Profile picture removed successfully' });
       } catch (err) {
         console.error('Error removing profile picture:', err);
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Update User Profile (name and email)
     app.put('/api/users/:id/profile', async (req, res) => {
       try {
         const { id } = req.params;
         const { name, email } = req.body;
-
         if (!name || !email) {
           return res.status(400).json({ error: 'Name and email are required' });
         }
-
-        // Email validation
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
           return res.status(400).json({ error: 'Invalid email format' });
         }
-
-        // Check if user exists
         const [existingUser] = await pool.query('SELECT id, email FROM users WHERE id = ?', [id]);
         if (!existingUser.length) {
           return res.status(404).json({ error: 'User not found' });
         }
-
-        // Check if email is already taken by another user
         const [emailCheck] = await pool.query('SELECT id FROM users WHERE email = ? AND id != ?', [email, id]);
         if (emailCheck.length > 0) {
           return res.status(400).json({ error: 'Email is already in use by another account' });
         }
-
-        // Update user profile
         await pool.query('UPDATE users SET name = ?, email = ? WHERE id = ?', [name, email, id]);
-
-        // Get updated user data
         const [updatedUser] = await pool.query('SELECT id, name, email, role, profile_picture, created_at FROM users WHERE id = ?', [id]);
-
         res.json({ 
           message: 'Profile updated successfully',
           user: updatedUser[0]
@@ -247,29 +184,21 @@ const PORT = process.env.PORT || 4000;
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Add a health check endpoint
     app.get('/api/ping', (req, res) => {
       res.json({ status: 'ok', message: 'Server is running' });
     });
-
-    // Add user validation endpoint
     app.get('/api/auth/validate', async (req, res) => {
       try {
-        const userId = req.headers['user-id']; // In a real app, use JWT
+        const userId = req.headers['user-id'];
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-        
         const [rows] = await pool.query('SELECT id, name, email, role FROM users WHERE id = ?', [userId]);
         if (!rows.length) return res.status(401).json({ error: 'User not found' });
-        
         res.json({ user: rows[0] });
       } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Debug endpoint to view all users (remove in production)
     app.get('/api/debug/users', async (req, res) => {
       try {
         const [rows] = await pool.query('SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC');
@@ -279,28 +208,20 @@ const PORT = process.env.PORT || 4000;
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Health check endpoint for Docker
     app.get('/api/health', (req, res) => {
       res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
     });
-
-    // Create Event endpoint
     app.post('/api/events', upload.single('photo'), async (req, res) => {
       try {
         const { event_name, event_category, event_date, event_time, location, ticket_price, capacity, organizer_id } = req.body;
-        
         if (!event_name || !event_category || !event_date || !event_time || !location || !ticket_price || !capacity || !organizer_id) {
           return res.status(400).json({ error: 'Missing required fields' });
         }
-
         const photo_url = req.file ? `/uploads/${req.file.filename}` : null;
-
         const [result] = await pool.query(
           'INSERT INTO events (event_name, event_category, event_date, event_time, location, ticket_price, capacity, photo_url, organizer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
           [event_name, event_category, event_date, event_time, location, ticket_price, capacity, photo_url, organizer_id]
         );
-
         res.status(201).json({ 
           id: result.insertId, 
           event_name,
@@ -320,8 +241,6 @@ const PORT = process.env.PORT || 4000;
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Get all events for a user (organized by them)
     app.get('/api/events/user/:userId', async (req, res) => {
       try {
         const { userId } = req.params;
@@ -334,34 +253,25 @@ const PORT = process.env.PORT || 4000;
            ORDER BY e.event_date DESC, e.event_time DESC`,
           [userId]
         );
-        console.log(`Fetching events for user ${userId}, found ${rows.length} events`); // Debug log
-        res.json(rows); // Return array directly
+        console.log(`Fetching events for user ${userId}, found ${rows.length} events`);
+        res.json(rows);
       } catch (err) {
         console.error('Error fetching events:', err);
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Get interest counts and revenue for all events organized by a user
     app.get('/api/events/user/:userId/overview', async (req, res) => {
       try {
         const { userId } = req.params;
-        
-        // Get all events organized by this user
         const [events] = await pool.query(
           'SELECT id, event_name, ticket_price FROM events WHERE organizer_id = ?',
           [userId]
         );
-        
         if (events.length === 0) {
           return res.json([]);
         }
-
-        // Get event IDs for the queries
         const eventIds = events.map(e => e.id);
         const placeholders = eventIds.map(() => '?').join(',');
-
-        // Get interest counts for each event
         const [interestCounts] = await pool.query(
           `SELECT event_id, 
             SUM(CASE WHEN interest_level = 'interested' THEN 1 ELSE 0 END) AS interested,
@@ -372,8 +282,6 @@ const PORT = process.env.PORT || 4000;
            GROUP BY event_id`,
           eventIds
         );
-
-        // Get revenue (sum of verified payments for each event)
         const [revenueData] = await pool.query(
           `SELECT event_id, SUM(amount) AS revenue
            FROM payments 
@@ -381,12 +289,9 @@ const PORT = process.env.PORT || 4000;
            GROUP BY event_id`,
           eventIds
         );
-
-        // Merge all data together
         const overview = events.map(event => {
           const counts = interestCounts.find(c => c.event_id === event.id) || {};
           const revenue = revenueData.find(r => r.event_id === event.id)?.revenue || 0;
-          
           return {
             event_id: event.id,
             event_name: event.event_name,
@@ -397,21 +302,16 @@ const PORT = process.env.PORT || 4000;
             revenue: Number(revenue)
           };
         });
-
         res.json(overview);
       } catch (err) {
         console.error('Error fetching event overview:', err);
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Get recent activity for a user
     app.get('/api/users/:userId/recent-activity', async (req, res) => {
       try {
         const { userId } = req.params;
         const activities = [];
-
-        // Get recent events created by user
         const [createdEvents] = await pool.query(
           `SELECT id, event_name, created_at 
            FROM events 
@@ -420,17 +320,14 @@ const PORT = process.env.PORT || 4000;
            LIMIT 5`,
           [userId]
         );
-
         createdEvents.forEach(event => {
           activities.push({
             type: 'event_created',
             action: `Created event: ${event.event_name}`,
             timestamp: event.created_at,
-            color: '#3b82f6' // blue
+            color: '#3b82f6'
           });
         });
-
-        // Get recent interest markings by user
         const [interests] = await pool.query(
           `SELECT ui.interest_level, ui.created_at, e.event_name 
            FROM user_interests ui
@@ -440,22 +337,19 @@ const PORT = process.env.PORT || 4000;
            LIMIT 5`,
           [userId]
         );
-
         interests.forEach(interest => {
           let action = '';
           let color = '';
-          
           if (interest.interest_level === 'interested') {
             action = `Marked interested in: ${interest.event_name}`;
-            color = '#f59e0b'; // orange
+            color = '#f59e0b';
           } else if (interest.interest_level === 'going') {
             action = `Marked going to: ${interest.event_name}`;
-            color = '#10b981'; // green
+            color = '#10b981';
           } else if (interest.interest_level === 'not_interested') {
             action = `Marked not interested in: ${interest.event_name}`;
-            color = '#ef4444'; // red
+            color = '#ef4444';
           }
-
           activities.push({
             type: 'interest_marked',
             action,
@@ -463,8 +357,6 @@ const PORT = process.env.PORT || 4000;
             color
           });
         });
-
-        // Get recent payments by user
         const [payments] = await pool.query(
           `SELECT p.amount, p.created_at, p.payment_status, e.event_name 
            FROM payments p
@@ -474,7 +366,6 @@ const PORT = process.env.PORT || 4000;
            LIMIT 5`,
           [userId]
         );
-
         payments.forEach(payment => {
           const status = payment.payment_status === 'verified' ? 'Payment verified' : 'Payment pending';
           activities.push({
@@ -484,12 +375,8 @@ const PORT = process.env.PORT || 4000;
             color: payment.payment_status === 'verified' ? '#10b981' : '#f59e0b'
           });
         });
-
-        // Sort all activities by timestamp (most recent first) and take top 5
         activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         const recentActivities = activities.slice(0, 5);
-
-        // Format the time ago
         const formatTimeAgo = (timestamp) => {
           const now = new Date();
           const then = new Date(timestamp);
@@ -497,7 +384,6 @@ const PORT = process.env.PORT || 4000;
           const diffMins = Math.floor(diffMs / 60000);
           const diffHours = Math.floor(diffMs / 3600000);
           const diffDays = Math.floor(diffMs / 86400000);
-
           if (diffMins < 60) {
             return diffMins <= 1 ? '1 minute ago' : `${diffMins} minutes ago`;
           } else if (diffHours < 24) {
@@ -506,31 +392,23 @@ const PORT = process.env.PORT || 4000;
             return diffDays === 1 ? '1 day ago' : `${diffDays} days ago`;
           }
         };
-
         const formattedActivities = recentActivities.map((activity, index) => ({
           id: index + 1,
           action: activity.action,
           time: formatTimeAgo(activity.timestamp),
           color: activity.color
         }));
-
         res.json(formattedActivities);
       } catch (err) {
         console.error('Error fetching recent activity:', err);
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Get dashboard stats
     app.get('/api/dashboard/stats/:userId', async (req, res) => {
       try {
         const { userId } = req.params;
-
-        // Get total events count (all users)
         const [totalEventsResult] = await pool.query('SELECT COUNT(*) as count FROM events');
         const totalEvents = totalEventsResult[0].count;
-
-        // Get trending event (most interested users)
         const [trendingResult] = await pool.query(
           `SELECT e.event_name, COUNT(ui.id) as interest_count
            FROM events e
@@ -539,7 +417,6 @@ const PORT = process.env.PORT || 4000;
            ORDER BY interest_count DESC
            LIMIT 1`
         );
-
         let trendingEvent = { name: 'No events yet', count: 0 };
         if (trendingResult.length > 0) {
           trendingEvent = {
@@ -547,20 +424,15 @@ const PORT = process.env.PORT || 4000;
             count: trendingResult[0].interest_count || 0
           };
         }
-
-        // Get user's organized events count
         const [userEventsResult] = await pool.query(
           'SELECT COUNT(*) as count FROM events WHERE organizer_id = ?',
           [userId]
         );
         const userOrganizedEvents = userEventsResult[0].count;
-
-        // Get total members (users who have organized at least one event)
         const [membersResult] = await pool.query(
           'SELECT COUNT(DISTINCT organizer_id) as count FROM events'
         );
         const totalMembers = membersResult[0].count;
-
         res.json({
           totalEvents,
           trendingEvent,
@@ -572,25 +444,17 @@ const PORT = process.env.PORT || 4000;
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Get registration trend data for user's events
     app.get('/api/users/:userId/registration-trend', async (req, res) => {
       try {
         const { userId } = req.params;
-
-        // Get all events organized by this user
         const [userEvents] = await pool.query(
           'SELECT id FROM events WHERE organizer_id = ?',
           [userId]
         );
-
         if (userEvents.length === 0) {
           return res.json([]);
         }
-
         const eventIds = userEvents.map(e => e.id);
-
-        // Get interested participants grouped by date for these events
         const [trendData] = await pool.query(
           `SELECT DATE(ui.created_at) as date, COUNT(*) as count
            FROM user_interests ui
@@ -599,23 +463,16 @@ const PORT = process.env.PORT || 4000;
            ORDER BY date ASC`,
           [eventIds]
         );
-
-        // Format dates for display
         const formattedData = trendData.map(item => ({
           date: new Date(item.date).toISOString().split('T')[0],
           count: Number(item.count)
         }));
-
-        // If no data, return empty array
         if (formattedData.length === 0) {
           return res.json([]);
         }
-
-        // Fill in missing dates with 0 counts for a smoother chart
         const startDate = new Date(formattedData[0].date);
         const endDate = new Date(formattedData[formattedData.length - 1].date);
         const filledData = [];
-        
         for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
           const dateStr = d.toISOString().split('T')[0];
           const existing = formattedData.find(item => item.date === dateStr);
@@ -624,20 +481,15 @@ const PORT = process.env.PORT || 4000;
             count: existing ? existing.count : 0
           });
         }
-
         res.json(filledData);
       } catch (err) {
         console.error('Error fetching registration trend:', err);
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Get attendee insights for a user's organized events
     app.get('/api/users/:userId/attendee-insights', async (req, res) => {
       const { userId } = req.params;
-      
       try {
-        // Get all events organized by this user with attendee counts
         const [events] = await pool.query(
           `SELECT 
             e.id,
@@ -650,10 +502,7 @@ const PORT = process.env.PORT || 4000;
           ORDER BY attendees DESC`,
           [userId]
         );
-
-        // Calculate total attendees
         const totalAttendees = events.reduce((sum, event) => sum + parseInt(event.attendees), 0);
-
         res.json({
           eventDistribution: events,
           totalAttendees: totalAttendees
@@ -663,13 +512,9 @@ const PORT = process.env.PORT || 4000;
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Get interested participants for a user's organized events
     app.get('/api/users/:userId/interested-participants', async (req, res) => {
       const { userId } = req.params;
-      
       try {
-        // Get all events organized by this user with interested participant counts
         const [events] = await pool.query(
           `SELECT 
             e.id,
@@ -682,7 +527,6 @@ const PORT = process.env.PORT || 4000;
           ORDER BY interestedCount DESC`,
           [userId]
         );
-
         res.json({
           eventInterests: events
         });
@@ -691,13 +535,9 @@ const PORT = process.env.PORT || 4000;
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Get participants list for a user's organized events
     app.get('/api/users/:userId/participants-list', async (req, res) => {
       const { userId } = req.params;
-      
       try {
-        // Get all participants for events organized by this user
         const [participants] = await pool.query(
           `SELECT 
             u.id as userId,
@@ -715,7 +555,6 @@ const PORT = process.env.PORT || 4000;
           ORDER BY ui.created_at DESC`,
           [userId]
         );
-
         res.json({
           participants: participants
         });
@@ -724,8 +563,6 @@ const PORT = process.env.PORT || 4000;
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Get all events
     app.get('/api/events', async (req, res) => {
       try {
         const [rows] = await pool.query(
@@ -736,14 +573,12 @@ const PORT = process.env.PORT || 4000;
            LEFT JOIN users u ON e.organizer_id = u.id 
            ORDER BY e.event_date DESC, e.event_time DESC`
         );
-        res.json(rows); // Return array directly
+        res.json(rows);
       } catch (err) {
         console.error('Error fetching events:', err);
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Get single event by ID
     app.get('/api/events/:id', async (req, res) => {
       try {
         const { id } = req.params;
@@ -763,29 +598,20 @@ const PORT = process.env.PORT || 4000;
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Update event
     app.put('/api/events/:id', upload.single('photo'), async (req, res) => {
       try {
         const { id } = req.params;
         const { event_name, event_category, event_date, event_time, location, ticket_price, capacity, organizer_id } = req.body;
-        
-        // Validate required fields
         if (!event_name || !event_category || !event_date || !event_time || !location || !ticket_price || !capacity || !organizer_id) {
           return res.status(400).json({ error: 'All fields are required' });
         }
-
-        // Check if event exists and user owns it
         const [existingEvent] = await pool.query('SELECT * FROM events WHERE id = ? AND organizer_id = ?', [id, organizer_id]);
         if (!existingEvent.length) {
           return res.status(404).json({ error: 'Event not found or unauthorized' });
         }
-
-        // Prepare update query
         let photo_url = existingEvent[0].photo_url;
         if (req.file) {
           photo_url = '/uploads/' + req.file.filename;
-          // Delete old photo if it exists
           if (existingEvent[0].photo_url) {
             const oldPhotoPath = path.join(__dirname, existingEvent[0].photo_url);
             if (fs.existsSync(oldPhotoPath)) {
@@ -793,43 +619,33 @@ const PORT = process.env.PORT || 4000;
             }
           }
         }
-
         await pool.query(
           'UPDATE events SET event_name = ?, event_category = ?, event_date = ?, event_time = ?, location = ?, ticket_price = ?, capacity = ?, photo_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
           [event_name, event_category, event_date, event_time, location, ticket_price, capacity, photo_url, id]
         );
-
         res.json({ message: 'Event updated successfully', id });
       } catch (err) {
         console.error('Error updating event:', err);
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Delete event
     app.delete('/api/events/:id', async (req, res) => {
       try {
         const { id } = req.params;
         const { organizer_id } = req.query;
-
         if (!organizer_id) {
           return res.status(400).json({ error: 'Organizer ID is required' });
         }
-
-        // Check if event exists and user owns it
         const [existingEvent] = await pool.query('SELECT * FROM events WHERE id = ? AND organizer_id = ?', [id, organizer_id]);
         if (!existingEvent.length) {
           return res.status(404).json({ error: 'Event not found or unauthorized' });
         }
-
-        // Delete photo file if it exists
         if (existingEvent[0].photo_url) {
           const photoPath = path.join(__dirname, existingEvent[0].photo_url);
           if (fs.existsSync(photoPath)) {
             fs.unlinkSync(photoPath);
           }
         }
-
         await pool.query('DELETE FROM events WHERE id = ?', [id]);
         res.json({ message: 'Event deleted successfully' });
       } catch (err) {
@@ -837,12 +653,6 @@ const PORT = process.env.PORT || 4000;
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // ====================
-    // USER INTERESTS ENDPOINTS
-    // ====================
-
-    // Get user's interest for a specific event
     app.get('/api/user-interests/:userId/:eventId', async (req, res) => {
       try {
         const { userId, eventId } = req.params;
@@ -850,7 +660,6 @@ const PORT = process.env.PORT || 4000;
           'SELECT * FROM user_interests WHERE user_id = ? AND event_id = ?',
           [userId, eventId]
         );
-        
         if (interest.length > 0) {
           res.json(interest[0]);
         } else {
@@ -861,8 +670,6 @@ const PORT = process.env.PORT || 4000;
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Get all interests for a user
     app.get('/api/user-interests/:userId', async (req, res) => {
       try {
         const { userId } = req.params;
@@ -876,43 +683,31 @@ const PORT = process.env.PORT || 4000;
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Set or update user interest for an event
     app.post('/api/user-interests', async (req, res) => {
       try {
         const { user_id, event_id, interest_level } = req.body;
-
         if (!user_id || !event_id || !interest_level) {
           return res.status(400).json({ error: 'Missing required fields' });
         }
-
-        // Validate interest level
         const validLevels = ['interested', 'not_interested', 'going'];
         if (!validLevels.includes(interest_level)) {
           return res.status(400).json({ error: 'Invalid interest level' });
         }
-
-        // Check if event exists
         const [event] = await pool.query('SELECT id FROM events WHERE id = ?', [event_id]);
         if (event.length === 0) {
           return res.status(404).json({ error: 'Event not found' });
         }
-
-        // Check if interest already exists
         const [existing] = await pool.query(
           'SELECT id FROM user_interests WHERE user_id = ? AND event_id = ?',
           [user_id, event_id]
         );
-
         if (existing.length > 0) {
-          // Update existing interest
           await pool.query(
             'UPDATE user_interests SET interest_level = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND event_id = ?',
             [interest_level, user_id, event_id]
           );
           res.json({ message: 'Interest updated successfully', interest_level });
         } else {
-          // Insert new interest
           await pool.query(
             'INSERT INTO user_interests (user_id, event_id, interest_level) VALUES (?, ?, ?)',
             [user_id, event_id, interest_level]
@@ -924,8 +719,6 @@ const PORT = process.env.PORT || 4000;
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Delete user interest for an event
     app.delete('/api/user-interests/:userId/:eventId', async (req, res) => {
       try {
         const { userId, eventId } = req.params;
@@ -939,54 +732,35 @@ const PORT = process.env.PORT || 4000;
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // ====================
-    // PAYMENT ENDPOINTS
-    // ====================
-
-    // Submit payment for event
     app.post('/api/payments', async (req, res) => {
       try {
         const { user_id, event_id, account_number, account_name, bank_name, reference_number, amount, payment_date, payment_method } = req.body;
-
         if (!user_id || !event_id || !bank_name || !reference_number || !amount) {
           return res.status(400).json({ error: 'Missing required payment fields' });
         }
-
-        // Validate payment method
         const validPaymentMethods = ['bank', 'card'];
         const method = payment_method || 'bank';
         if (!validPaymentMethods.includes(method)) {
           return res.status(400).json({ error: 'Invalid payment method' });
         }
-
-        // Check if event exists
         const [event] = await pool.query('SELECT id, ticket_price FROM events WHERE id = ?', [event_id]);
         if (event.length === 0) {
           return res.status(404).json({ error: 'Event not found' });
         }
-
-        // Verify amount matches ticket price
         if (parseFloat(amount) !== parseFloat(event[0].ticket_price)) {
           return res.status(400).json({ error: 'Payment amount does not match ticket price' });
         }
-
-        // Check if payment already exists for this reference number
         const [existing] = await pool.query(
           'SELECT id FROM payments WHERE user_id = ? AND event_id = ? AND reference_number = ?',
           [user_id, event_id, reference_number]
         );
-
         if (existing.length > 0) {
           return res.status(400).json({ error: 'Payment with this reference number already exists' });
         }
-
-        // Insert payment record
         const [result] = await pool.query(
           'INSERT INTO payments (user_id, event_id, account_number, account_name, bank_name, reference_number, amount, payment_date, payment_status, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
           [user_id, event_id, account_number || null, account_name || null, bank_name, reference_number, amount, payment_date, 'pending', method]
         );
-
         res.json({ 
           message: method === 'card' ? 'Card payment processed successfully. Awaiting verification.' : 'Payment submitted successfully. Awaiting verification.', 
           payment_id: result.insertId,
@@ -998,8 +772,6 @@ const PORT = process.env.PORT || 4000;
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Get user's payments
     app.get('/api/payments/user/:userId', async (req, res) => {
       try {
         const { userId } = req.params;
@@ -1017,8 +789,6 @@ const PORT = process.env.PORT || 4000;
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Get payment by event and user
     app.get('/api/payments/:userId/:eventId', async (req, res) => {
       try {
         const { userId, eventId } = req.params;
@@ -1026,7 +796,6 @@ const PORT = process.env.PORT || 4000;
           'SELECT * FROM payments WHERE user_id = ? AND event_id = ? ORDER BY created_at DESC LIMIT 1',
           [userId, eventId]
         );
-        
         if (payment.length > 0) {
           res.json(payment[0]);
         } else {
@@ -1037,29 +806,22 @@ const PORT = process.env.PORT || 4000;
         res.status(500).json({ error: 'Server error' });
       }
     });
-
-    // Verify payment (admin only - you can add auth middleware)
     app.put('/api/payments/:paymentId/verify', async (req, res) => {
       try {
         const { paymentId } = req.params;
         const { verified_by, status, rejection_reason } = req.body;
-
         if (!['verified', 'rejected'].includes(status)) {
           return res.status(400).json({ error: 'Invalid status' });
         }
-
         if (status === 'rejected' && !rejection_reason) {
           return res.status(400).json({ error: 'Rejection reason is required' });
         }
-
         const updateData = status === 'verified' 
           ? [status, new Date(), verified_by, paymentId]
           : [status, null, verified_by, rejection_reason, paymentId];
-
         const query = status === 'verified'
           ? 'UPDATE payments SET payment_status = ?, verified_at = ?, verified_by = ? WHERE id = ?'
           : 'UPDATE payments SET payment_status = ?, verified_at = ?, verified_by = ?, rejection_reason = ? WHERE id = ?';
-
         await pool.query(query, updateData);
         res.json({ message: `Payment ${status} successfully` });
       } catch (err) {
@@ -1067,7 +829,6 @@ const PORT = process.env.PORT || 4000;
         res.status(500).json({ error: 'Server error' });
       }
     });
-
     app.listen(PORT, () => console.log(`Server running on port ${PORT} - http://localhost:${PORT}`));
   } catch (err) {
     console.error('Failed to start server:', err);

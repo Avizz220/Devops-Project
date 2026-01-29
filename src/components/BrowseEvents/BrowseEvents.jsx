@@ -13,7 +13,6 @@ const BrowseEvents = () => {
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
 
-  // Fetch all events on component mount
   useEffect(() => {
     fetchAllEvents();
   }, []);
@@ -21,24 +20,20 @@ const BrowseEvents = () => {
   const fetchAllEvents = async () => {
     try {
       setLoading(true);
-      
-      // Get current user
+
       const userStr = localStorage.getItem(STORAGE_KEYS.USER);
       const user = userStr ? JSON.parse(userStr) : null;
       setCurrentUser(user);
 
-      // Fetch all events
       const response = await fetch(`${API_BASE_URL}/api/events`);
       if (!response.ok) throw new Error('Failed to fetch events');
       
       const events = await response.json();
-      
-      // Sort events by date (default)
+
       const sortedEvents = events.sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
       
       setAllEvents(sortedEvents);
-      
-      // Separate user's events and other events
+
       if (user) {
         const userEventsFiltered = sortedEvents.filter(event => event.organizer_id === user.id);
         const othersEventsFiltered = sortedEvents.filter(event => event.organizer_id !== user.id);
@@ -56,21 +51,18 @@ const BrowseEvents = () => {
     }
   };
 
-  // Filter and sort events
   const filterAndSortEvents = (events) => {
     let filtered = events.filter(event => {
-      // Search filter (event name, location)
+
       const matchesSearch = 
         event.event_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         event.location.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      // Category filter
+
       const matchesCategory = selectedCategory === 'all' || event.event_category === selectedCategory;
       
       return matchesSearch && matchesCategory;
     });
 
-    // Sort events
     if (sortBy === 'date') {
       filtered.sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
     } else if (sortBy === 'price') {
@@ -86,13 +78,11 @@ const BrowseEvents = () => {
   const filteredOtherEvents = filterAndSortEvents(otherEvents);
   const totalFilteredEvents = filteredMyEvents.length + filteredOtherEvents.length;
 
-  // Format date
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  // Format time
   const formatTime = (timeString) => {
     const [hours, minutes] = timeString.split(':');
     const hour = parseInt(hours);
@@ -101,7 +91,6 @@ const BrowseEvents = () => {
     return `${displayHour}:${minutes} ${ampm}`;
   };
 
-  // Render event card
   const renderEventCard = (event, index) => (
     <div 
       key={event.id} 
@@ -149,7 +138,6 @@ const BrowseEvents = () => {
     </div>
   );
 
-  // Loading state
   if (loading) {
     return (
       <div className="browse-events-container">

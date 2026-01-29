@@ -2,8 +2,7 @@ pipeline {
     agent any
     
     environment {
-        // Docker Hub configuration
-        DOCKER_HUB_USERNAME = 'avishka2002'  // Your Docker Hub username
+        DOCKER_HUB_USERNAME = 'avishka2002'
         FRONTEND_IMAGE_NAME = 'community-events-frontend'
         BACKEND_IMAGE_NAME = 'community-events-backend'
         DOCKER_IMAGE_TAG = "${BUILD_NUMBER}"

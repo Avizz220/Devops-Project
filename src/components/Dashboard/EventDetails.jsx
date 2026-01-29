@@ -12,8 +12,7 @@ const EventDetails = () => {
   const [editingEvent, setEditingEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [registrationTrendData, setRegistrationTrendData] = useState([]);
-  
-  // Edit form states
+
   const [editEventName, setEditEventName] = useState('');
   const [editEventCategory, setEditEventCategory] = useState('tech');
   const [editEventDate, setEditEventDate] = useState('');
@@ -24,14 +23,13 @@ const EventDetails = () => {
   const [editEventPhoto, setEditEventPhoto] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch user's events
   useEffect(() => {
     const fetchMyEvents = async () => {
       try {
         setLoading(true);
         const userStr = localStorage.getItem(STORAGE_KEYS.USER);
         
-        console.log('Raw user string from localStorage:', userStr); // Debug log
+        console.log('Raw user string from localStorage:', userStr);
         
         if (!userStr) {
           console.error('No user found in localStorage');
@@ -46,7 +44,7 @@ const EventDetails = () => {
         }
 
         const user = JSON.parse(userStr);
-        console.log('Parsed user object:', user); // Debug log
+        console.log('Parsed user object:', user);
         
         if (!user || !user.id) {
           console.error('User object is invalid:', user);
@@ -60,7 +58,7 @@ const EventDetails = () => {
           return;
         }
 
-        console.log(`Fetching events for user ID: ${user.id} (${user.name})`); // Debug log
+        console.log(`Fetching events for user ID: ${user.id} (${user.name})`);
         const response = await fetch(`${API_BASE_URL}/api/events/user/${user.id}`);
         
         if (!response.ok) {
@@ -68,19 +66,17 @@ const EventDetails = () => {
         }
 
         const data = await response.json();
-        console.log('Fetched events data:', data); // Debug log
-        
-        // Handle both array and object response formats
+        console.log('Fetched events data:', data);
+
         const eventsArray = Array.isArray(data) ? data : (data.events || []);
-        console.log(`Found ${eventsArray.length} events for user ${user.name}`); // Debug log
+        console.log(`Found ${eventsArray.length} events for user ${user.name}`);
         setMyEvents(eventsArray);
-        
-        // Select first event by default
+
         if (eventsArray.length > 0) {
           setSelectedEvent(eventsArray[0]);
-          console.log('Selected first event:', eventsArray[0].event_name); // Debug log
+          console.log('Selected first event:', eventsArray[0].event_name);
         } else {
-          console.log('No events found for this user'); // Debug log
+          console.log('No events found for this user');
         }
         
         setLoading(false);
@@ -99,7 +95,6 @@ const EventDetails = () => {
     fetchMyEvents();
   }, []);
 
-  // Fetch registration trend data for the user's events
   useEffect(() => {
     const fetchRegistrationTrend = async () => {
       try {
@@ -125,7 +120,6 @@ const EventDetails = () => {
     fetchRegistrationTrend();
   }, [myEvents]);
 
-  // Format date for display
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
@@ -136,17 +130,14 @@ const EventDetails = () => {
     });
   };
 
-  // Format time for display
   const formatTime = (timeString) => {
-    return timeString.substring(0, 5); // Extract HH:MM from HH:MM:SS
+    return timeString.substring(0, 5);
   };
 
-  // Calculate booking rate
   const calculateBookingRate = (booked, capacity) => {
     return Math.round((booked / capacity) * 100);
   };
 
-  // Handle delete event
   const handleDeleteEvent = async (eventId) => {
     const result = await Swal.fire({
       title: 'Delete Event?',
@@ -171,10 +162,8 @@ const EventDetails = () => {
           throw new Error('Failed to delete event');
         }
 
-        // Remove event from state
         setMyEvents(prev => prev.filter(e => e.id !== eventId));
-        
-        // Close modal if deleted event was selected
+
         if (selectedEvent?.id === eventId) {
           setModalOpen(false);
           setSelectedEvent(null);
@@ -198,13 +187,12 @@ const EventDetails = () => {
     }
   };
 
-  // Handle open edit modal
   const handleEditEvent = (event) => {
     setEditingEvent(event);
     setEditEventName(event.event_name);
     setEditEventCategory(event.event_category);
-    setEditEventDate(event.event_date.split('T')[0]); // Format for input[type="date"]
-    setEditEventTime(event.event_time.substring(0, 5)); // HH:MM
+    setEditEventDate(event.event_date.split('T')[0]);
+    setEditEventTime(event.event_time.substring(0, 5));
     setEditLocation(event.location);
     setEditTicketPrice(event.ticket_price);
     setEditCapacity(event.capacity);
@@ -212,7 +200,6 @@ const EventDetails = () => {
     setEditModalOpen(true);
   };
 
-  // Handle update event
   const handleUpdateEvent = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -244,7 +231,6 @@ const EventDetails = () => {
         throw new Error('Failed to update event');
       }
 
-      // Update event in state
       const updatedEvents = myEvents.map(ev => {
         if (ev.id === editingEvent.id) {
           return {
@@ -263,8 +249,7 @@ const EventDetails = () => {
       });
       
       setMyEvents(updatedEvents);
-      
-      // Update selected event if it was being edited
+
       if (selectedEvent?.id === editingEvent.id) {
         setSelectedEvent(updatedEvents.find(e => e.id === editingEvent.id));
       }
@@ -292,7 +277,6 @@ const EventDetails = () => {
     }
   };
 
-  // Ticket sales data (dummy for now - can be enhanced later)
   const ticketSalesData = [
     { week: 'Week 1', sales: 50 },
     { week: 'Week 2', sales: 100 },
@@ -305,7 +289,6 @@ const EventDetails = () => {
 
   const maxSales = Math.max(...ticketSalesData.map(d => d.sales));
 
-  // Show loading state
   if (loading) {
     return (
       <div className="event-details-container">
@@ -317,7 +300,6 @@ const EventDetails = () => {
     );
   }
 
-  // Show empty state if no events
   if (myEvents.length === 0) {
     return (
       <div className="event-details-container">

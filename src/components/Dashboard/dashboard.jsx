@@ -25,8 +25,7 @@ const Dashboard = () => {
     userOrganizedEvents: 0,
     totalMembers: 0
   });
-  
-  // Form states
+
   const [eventName, setEventName] = useState('');
   const [eventCategory, setEventCategory] = useState('tech');
   const [eventDate, setEventDate] = useState('');
@@ -37,7 +36,6 @@ const Dashboard = () => {
   const [eventPhoto, setEventPhoto] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Chart data
   const revenueData = [
     { month: 'Jan', value: 280 },
     { month: 'Feb', value: 310 },
@@ -62,18 +60,15 @@ const Dashboard = () => {
       }
     }
 
-    // Fetch upcoming events and category data
     fetchUpcomingEvents();
     fetchCategoryData();
-    
-    // Fetch events overview and recent activity for the logged-in user
+
     if (parsedUser?.id) {
       fetchEventsOverview(parsedUser.id);
       fetchRecentActivity(parsedUser.id);
       fetchDashboardStats(parsedUser.id);
     }
 
-    // Listen for profile updates from Settings page
     const handleProfileUpdate = (event) => {
       setUser(event.detail);
     };
@@ -93,26 +88,22 @@ const Dashboard = () => {
       }
       
       const events = await response.json();
-      
-      // Get today's date
+
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
-      // Filter upcoming events (events on or after today)
+
       const upcoming = events.filter(event => {
         const eventDate = new Date(event.event_date);
         eventDate.setHours(0, 0, 0, 0);
         return eventDate >= today;
       });
-      
-      // Sort by date (closest first)
+
       upcoming.sort((a, b) => {
         const dateA = new Date(a.event_date);
         const dateB = new Date(b.event_date);
         return dateA - dateB;
       });
-      
-      // Take only the first 3 closest events
+
       setUpcomingEvents(upcoming.slice(0, 3));
     } catch (error) {
       console.error('Error fetching upcoming events:', error);
@@ -128,23 +119,21 @@ const Dashboard = () => {
       }
       
       const events = await response.json();
-      
-      // Count events by category
+
       const categoryCounts = {};
       events.forEach(event => {
         const category = event.event_category;
         if (category) {
-          // Capitalize first letter for display
+
           const displayName = category.charAt(0).toUpperCase() + category.slice(1);
           categoryCounts[displayName] = (categoryCounts[displayName] || 0) + 1;
         }
       });
-      
-      // Convert to array format and sort by count (descending)
+
       const categoryArray = Object.entries(categoryCounts)
         .map(([name, value]) => ({ name, value }))
         .sort((a, b) => b.value - a.value)
-        .slice(0, 4); // Take top 4 categories
+        .slice(0, 4);
       
       setCategoryData(categoryArray);
     } catch (error) {
@@ -265,10 +254,10 @@ const Dashboard = () => {
         });
         resetForm();
         setShowCreateModal(false);
-        // Refresh upcoming events and category data
+
         fetchUpcomingEvents();
         fetchCategoryData();
-        // Refresh events overview and recent activity
+
         if (user?.id) {
           fetchEventsOverview(user.id);
           fetchRecentActivity(user.id);

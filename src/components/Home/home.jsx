@@ -8,7 +8,7 @@ const Home = () => {
   const [user, setUser] = useState(null);
   
   useEffect(() => {
-    // Check if user is logged in
+
     const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
     
     if (!storedUser) {

@@ -1,6 +1,5 @@
 import Swal from 'sweetalert2';
 
-// Common dialog styling
 const baseStyle = {
   customClass: {
     confirmButton: 'swal-confirm-button',
@@ -11,7 +10,6 @@ const baseStyle = {
   buttonsStyling: true
 };
 
-// Success dialog
 export const showSuccessAlert = ({
   title = 'Success',
   text,
@@ -42,7 +40,6 @@ export const showSuccessAlert = ({
   });
 };
 
-// Error dialog
 export const showErrorAlert = ({
   title = 'Error',
   text,
@@ -58,7 +55,6 @@ export const showErrorAlert = ({
   });
 };
 
-// Confirmation dialog
 export const showConfirmAlert = ({
   title = 'Are you sure?',
   text,
@@ -79,7 +75,6 @@ export const showConfirmAlert = ({
   });
 };
 
-// Add custom CSS for SweetAlert2
 export const initSweetAlertStyles = () => {
   const style = document.createElement('style');
   style.innerHTML = `

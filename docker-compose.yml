@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # MySQL Database
   mysql:
     image: mysql:8.0
     container_name: community_mysql
@@ -23,7 +22,6 @@ services:
       timeout: 20s
       retries: 10
 
-  # Backend API
   backend:
     build:
       context: ./backend
@@ -53,7 +51,6 @@ services:
       retries: 5
       start_period: 30s
 
-  # Frontend React App
   frontend:
     build:
       context: .
@@ -74,7 +71,6 @@ services:
       timeout: 10s
       retries: 3
 
-  # phpMyAdmin for database management
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
     container_name: community_phpmyadmin

@@ -8,7 +8,6 @@ const Settings = () => {
   const [profileImage, setProfileImage] = useState(null);
   const fileInputRef = useRef(null);
 
-  // Password reset form
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -16,21 +15,19 @@ const Settings = () => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Profile edit states
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editedName, setEditedName] = useState('');
   const [editedEmail, setEditedEmail] = useState('');
 
   useEffect(() => {
-    // Load user data from localStorage
+
     const userData = localStorage.getItem(STORAGE_KEYS.USER);
     if (userData) {
       const parsedUser = JSON.parse(userData);
       setUser(parsedUser);
       setEditedName(parsedUser.name || '');
       setEditedEmail(parsedUser.email || '');
-      
-      // Load profile image from user object (from database)
+
       if (parsedUser.profile_picture) {
         setProfileImage(`${API_BASE_URL}${parsedUser.profile_picture}`);
       }
@@ -44,7 +41,7 @@ const Settings = () => {
   const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validate file type
+
       if (!file.type.startsWith('image/')) {
         Swal.fire({
           icon: 'error',
@@ -54,7 +51,6 @@ const Settings = () => {
         return;
       }
 
-      // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         Swal.fire({
           icon: 'error',
@@ -65,7 +61,7 @@ const Settings = () => {
       }
 
       try {
-        // Upload to backend API
+
         const formData = new FormData();
         formData.append('profile_picture', file);
 
@@ -80,11 +76,9 @@ const Settings = () => {
           throw new Error(data.error || 'Failed to upload profile picture');
         }
 
-        // Update profile image display
         const imageUrl = `${API_BASE_URL}${data.profile_picture}`;
         setProfileImage(imageUrl);
-        
-        // Update user in localStorage with new profile_picture
+
         const updatedUser = { ...user, profile_picture: data.profile_picture };
         localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
         setUser(updatedUser);
@@ -97,7 +91,6 @@ const Settings = () => {
           showConfirmButton: false,
         });
 
-        // Trigger a custom event to notify dashboard to refresh
         window.dispatchEvent(new CustomEvent('profileUpdated', { detail: updatedUser }));
       } catch (error) {
         console.error('Error uploading profile picture:', error);
@@ -134,8 +127,7 @@ const Settings = () => {
         }
 
         setProfileImage(null);
-        
-        // Update user in localStorage
+
         const updatedUser = { ...user, profile_picture: null };
         localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
         setUser(updatedUser);
@@ -148,7 +140,6 @@ const Settings = () => {
           showConfirmButton: false,
         });
 
-        // Trigger event to update dashboard
         window.dispatchEvent(new CustomEvent('profileUpdated', { detail: updatedUser }));
       } catch (error) {
         console.error('Error removing profile picture:', error);
@@ -164,7 +155,6 @@ const Settings = () => {
   const handlePasswordReset = async (e) => {
     e.preventDefault();
 
-    // Validation
     if (!currentPassword || !newPassword || !confirmPassword) {
       Swal.fire({
         icon: 'error',
@@ -193,7 +183,7 @@ const Settings = () => {
     }
 
     try {
-      // Call backend API to reset password
+
       const response = await fetch('/api/auth/reset-password', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -217,7 +207,6 @@ const Settings = () => {
         showConfirmButton: false,
       });
 
-      // Clear form
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -240,7 +229,6 @@ const Settings = () => {
       return;
     }
 
-    // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(editedEmail)) {
       Swal.fire({
@@ -252,7 +240,7 @@ const Settings = () => {
     }
 
     try {
-      // Call backend API to update profile
+
       const response = await fetch(`${API_BASE_URL}/api/users/${user.id}/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -268,7 +256,6 @@ const Settings = () => {
         throw new Error(data.error || 'Failed to update profile');
       }
 
-      // Update user in localStorage with updated data from server
       const updatedUser = data.user;
       localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
       setUser(updatedUser);
@@ -282,7 +269,6 @@ const Settings = () => {
         showConfirmButton: false,
       });
 
-      // Trigger event to update dashboard
       window.dispatchEvent(new CustomEvent('profileUpdated', { detail: updatedUser }));
     } catch (error) {
       console.error('Error updating profile:', error);

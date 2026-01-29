@@ -7,7 +7,6 @@ import Dashboard from './components/Dashboard/dashboard';
 import LandingPage from './components/Landing/landing';
 import { STORAGE_KEYS } from './config';
 
-// Create Auth Context
 const AuthContext = createContext(null);
 
 export const useAuth = () => {
@@ -23,13 +22,13 @@ const App = () => {
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
-    // Check if user is logged in on mount
+
     try {
       const userString = localStorage.getItem(STORAGE_KEYS.USER);
       console.log('Checking user login status:', userString ? 'Logged in' : 'Not logged in');
       
       if (userString) {
-        // Validate that the user data is actually valid JSON and has required fields
+
         try {
           const user = JSON.parse(userString);
           if (user && user.id && user.email) {
@@ -69,7 +68,6 @@ const App = () => {
     setIsLoggedIn(false);
   };
 
-  // Show loading state while checking authentication
   if (loading) {
     return (
       <div style={{

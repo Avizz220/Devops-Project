@@ -4,7 +4,6 @@ import Swal from 'sweetalert2';
 import './signup.css';
 import { API_ENDPOINTS } from '../../config';
 
-// Use local images for signup (different from login)
 const sliderImages = [
   '/images/backgrounds/bg2.jpg',
   '/images/backgrounds/bg4.jpg',
@@ -12,7 +11,6 @@ const sliderImages = [
   '/images/backgrounds/bg3.jpg',
 ];
 
-// Online fallbacks for signup
 const onlineFallbacks = [
   'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=1920&q=80',
   'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?auto=format&fit=crop&w=1920&q=80',
@@ -20,7 +18,6 @@ const onlineFallbacks = [
   'https://images.unsplash.com/photo-1439066615861-d1af74d74000?auto=format&fit=crop&w=1920&q=80',
 ];
 
-// Different gradients for signup
 const fallbackBackgrounds = [
   'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
   'linear-gradient(135deg, #f5576c 0%, #f093fb 100%)',
@@ -47,7 +44,6 @@ const Signup = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Enhanced image loading with multiple fallback levels
   useEffect(() => {
     const preloadImages = () => {
       sliderImages.forEach((src, index) => {
@@ -58,7 +54,7 @@ const Signup = () => {
         };
         img.onerror = () => {
           console.warn(`❌ Signup local image ${index + 1} failed, trying online...`);
-          // Try online fallback
+
           const fallbackImg = new Image();
           fallbackImg.onload = () => {
             console.log(`✅ Signup online fallback ${index + 1} loaded`);
@@ -93,12 +89,10 @@ const Signup = () => {
         throw new Error(data.error || 'Signup failed');
       }
 
-      // Clear form
       setName('');
       setEmail('');
       setPassword('');
-      
-      // Show success message
+
       await Swal.fire({
         icon: 'success',
         title: 'Success!',
@@ -106,8 +100,7 @@ const Signup = () => {
         confirmButtonColor: '#3085d6',
         confirmButtonText: 'Go to Login'
       });
-      
-      // Redirect to login page
+
       navigate('/login');
     } catch (error) {
       Swal.fire({
@@ -130,10 +123,10 @@ const Signup = () => {
         
         let backgroundStyle;
         if (loadedImage && loadedImage !== false) {
-          // Use the successfully loaded image (local or online fallback)
+
           backgroundStyle = { backgroundImage: `url(${loadedImage})` };
         } else {
-          // Use gradient fallback
+
           backgroundStyle = { background: fallbackBackgrounds[idx] };
         }
         

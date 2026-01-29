@@ -5,7 +5,6 @@ import './login.css';
 import { API_ENDPOINTS, STORAGE_KEYS } from '../../config';
 import { useAuth } from '../../App';
 
-// Use local images that will work in Docker + online fallbacks
 const sliderImages = [
   '/images/backgrounds/bg1.jpg',
   '/images/backgrounds/bg2.jpg', 
@@ -13,7 +12,6 @@ const sliderImages = [
   '/images/backgrounds/bg4.jpg',
 ];
 
-// Online fallbacks if local images don't exist
 const onlineFallbacks = [
   'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=1920&q=80',
   'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=1920&q=80',
@@ -21,7 +19,6 @@ const onlineFallbacks = [
   'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?auto=format&fit=crop&w=1920&q=80',
 ];
 
-// Beautiful gradient fallbacks as final backup
 const fallbackBackgrounds = [
   'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
   'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', 
@@ -47,7 +44,6 @@ const Login = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Enhanced image loading with multiple fallback levels
   useEffect(() => {
     const preloadImages = () => {
       sliderImages.forEach((src, index) => {
@@ -58,7 +54,7 @@ const Login = () => {
         };
         img.onerror = () => {
           console.warn(`❌ Local image ${index + 1} failed, trying online fallback...`);
-          // Try online fallback
+
           const fallbackImg = new Image();
           fallbackImg.onload = () => {
             console.log(`✅ Online fallback ${index + 1} loaded successfully`);
@@ -93,15 +89,12 @@ const Login = () => {
         throw new Error(data.error || 'Login failed');
       }
 
-      // The server returns user data directly, not nested in a user object
-      // Save user data using the auth context
+
       login(data);
-      
-      // Clear form
+
       setEmail('');
       setPassword('');
-      
-      // Show success message
+
       await Swal.fire({
         icon: 'success',
         title: 'Login Successful!',
@@ -110,8 +103,7 @@ const Login = () => {
         timerProgressBar: true,
         showConfirmButton: false
       });
-      
-      // Navigate to dashboard (will happen automatically due to auth state change)
+
       navigate('/', { replace: true });
     } catch (error) {
       Swal.fire({
@@ -134,10 +126,10 @@ const Login = () => {
         
         let backgroundStyle;
         if (loadedImage && loadedImage !== false) {
-          // Use the successfully loaded image (local or online fallback)
+
           backgroundStyle = { backgroundImage: `url(${loadedImage})` };
         } else {
-          // Use gradient fallback
+
           backgroundStyle = { background: fallbackBackgrounds[idx] };
         }
         

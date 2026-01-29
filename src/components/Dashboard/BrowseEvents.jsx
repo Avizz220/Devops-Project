@@ -17,7 +17,7 @@ const BrowseEvents = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [userInterest, setUserInterest] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState(''); // 'bank' or 'card'
+  const [paymentMethod, setPaymentMethod] = useState('');
   const [paymentDetails, setPaymentDetails] = useState({
     accountNumber: '',
     accountName: '',
@@ -31,12 +31,11 @@ const BrowseEvents = () => {
     expiryMonth: '',
     expiryYear: '',
     cvv: '',
-    cardType: '', // 'visa' or 'mastercard'
+    cardType: '',
     bankName: ''
   });
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
-  // Fetch all events on component mount
   useEffect(() => {
     fetchAllEvents();
   }, []);
@@ -44,24 +43,20 @@ const BrowseEvents = () => {
   const fetchAllEvents = async () => {
     try {
       setLoading(true);
-      
-      // Get current user
+
       const userStr = localStorage.getItem(STORAGE_KEYS.USER);
       const user = userStr ? JSON.parse(userStr) : null;
       setCurrentUser(user);
 
-      // Fetch all events
       const response = await fetch(`${API_BASE_URL}/api/events`);
       if (!response.ok) throw new Error('Failed to fetch events');
       
       const events = await response.json();
-      
-      // Sort events by date (default)
+
       const sortedEvents = events.sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
       
       setAllEvents(sortedEvents);
-      
-      // Separate user's events and other events
+
       if (user) {
         const userEventsFiltered = sortedEvents.filter(event => event.organizer_id === user.id);
         const othersEventsFiltered = sortedEvents.filter(event => event.organizer_id !== user.id);
@@ -79,21 +74,18 @@ const BrowseEvents = () => {
     }
   };
 
-  // Filter and sort events
   const filterAndSortEvents = (events) => {
     let filtered = events.filter(event => {
-      // Search filter (event name, location)
+
       const matchesSearch = 
         event.event_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         event.location.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      // Category filter
+
       const matchesCategory = selectedCategory === 'all' || event.event_category === selectedCategory;
       
       return matchesSearch && matchesCategory;
     });
 
-    // Sort events
     if (sortBy === 'date') {
       filtered.sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
     } else if (sortBy === 'price') {
@@ -109,13 +101,11 @@ const BrowseEvents = () => {
   const filteredOtherEvents = filterAndSortEvents(otherEvents);
   const totalFilteredEvents = filteredMyEvents.length + filteredOtherEvents.length;
 
-  // Format date
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  // Format time
   const formatTime = (timeString) => {
     const [hours, minutes] = timeString.split(':');
     const hour = parseInt(hours);
@@ -124,12 +114,10 @@ const BrowseEvents = () => {
     return `${displayHour}:${minutes} ${ampm}`;
   };
 
-  // Open event details modal
   const handleViewDetails = async (event) => {
     setSelectedEvent(event);
     setShowDetailsModal(true);
-    
-    // Fetch user's interest for this event if logged in
+
     if (currentUser) {
       try {
         const response = await fetch(`${API_BASE_URL}/api/user-interests/${currentUser.id}/${event.id}`);
@@ -143,24 +131,20 @@ const BrowseEvents = () => {
     }
   };
 
-  // Close event details modal
   const handleCloseModal = () => {
     setShowDetailsModal(false);
     setSelectedEvent(null);
     setUserInterest(null);
   };
 
-  // Handle interest change
   const handleInterestChange = async (interestLevel) => {
     if (!currentUser || !selectedEvent) return;
 
-    // If user selects "going", open payment modal
     if (interestLevel === 'going') {
       setShowPaymentModal(true);
       return;
     }
 
-    // For other interest levels, save directly
     try {
       const response = await fetch(`${API_BASE_URL}/api/user-interests`, {
         method: 'POST',
@@ -197,11 +181,9 @@ const BrowseEvents = () => {
     }
   };
 
-  // Handle payment submission
   const handlePaymentSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validate based on payment method
+
     if (paymentMethod === 'bank') {
       if (!paymentDetails.accountNumber || !paymentDetails.accountName || 
           !paymentDetails.bankName || !paymentDetails.referenceNumber) {
@@ -224,7 +206,6 @@ const BrowseEvents = () => {
         return;
       }
 
-      // Validate card number (basic validation)
       const cardNum = cardDetails.cardNumber.replace(/\s/g, '');
       if (cardNum.length !== 16) {
         Swal.fire({
@@ -235,7 +216,6 @@ const BrowseEvents = () => {
         return;
       }
 
-      // Validate CVV
       if (cardDetails.cvv.length !== 3) {
         Swal.fire({
           icon: 'error',
@@ -249,7 +229,7 @@ const BrowseEvents = () => {
     setIsProcessingPayment(true);
 
     try {
-      // First, mark the user as going
+
       const interestResponse = await fetch(`${API_BASE_URL}/api/user-interests`, {
         method: 'POST',
         headers: {
@@ -266,7 +246,6 @@ const BrowseEvents = () => {
         throw new Error('Failed to register for event');
       }
 
-      // Prepare payment data based on method
       const paymentData = {
         user_id: currentUser.id,
         event_id: selectedEvent.id,
@@ -285,7 +264,7 @@ const BrowseEvents = () => {
       } else if (paymentMethod === 'card') {
         Object.assign(paymentData, {
           card_holder_name: cardDetails.cardHolderName,
-          card_number: cardDetails.cardNumber.replace(/\s/g, '').slice(-4), // Store only last 4 digits
+          card_number: cardDetails.cardNumber.replace(/\s/g, '').slice(-4),
           card_type: cardDetails.cardType,
           bank_name: cardDetails.bankName,
           reference_number: `CARD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
@@ -348,7 +327,6 @@ const BrowseEvents = () => {
     }
   };
 
-  // Close payment modal
   const handleClosePaymentModal = () => {
     setShowPaymentModal(false);
     setPaymentMethod('');
@@ -370,7 +348,6 @@ const BrowseEvents = () => {
     });
   };
 
-  // Format card number with spaces
   const formatCardNumber = (value) => {
     const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
     const matches = v.match(/\d{4,16}/g);
@@ -386,7 +363,6 @@ const BrowseEvents = () => {
     }
   };
 
-  // Render event card
   const renderEventCard = (event, index) => {
     const isMyEvent = currentUser && event.organizer_id === currentUser.id;
     
@@ -443,7 +419,6 @@ const BrowseEvents = () => {
     );
   };
 
-  // Loading state
   if (loading) {
     return (
       <div className="browse-events-container">

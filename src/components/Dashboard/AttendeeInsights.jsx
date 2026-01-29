@@ -22,7 +22,7 @@ const AttendeeInsights = () => {
   }, []);
 
   useEffect(() => {
-    // Auto-rotate events every 3 seconds
+
     if (organizedEvents.length > 0) {
       const interval = setInterval(() => {
         setCurrentEventIndex((prevIndex) => 
@@ -165,7 +165,6 @@ const AttendeeInsights = () => {
     );
   };
 
-  // Calculate pie chart segments
   const calculatePieSegments = () => {
     if (attendeeData.length === 0) return [];
 
@@ -180,7 +179,7 @@ const AttendeeInsights = () => {
       return {
         eventName: event.eventName,
         attendees: event.attendees,
-        percentage: percentage,  // Keep as number
+        percentage: percentage,
         color: colors[index % colors.length],
         startAngle,
         dashArray: `${percentage * 5.03} ${100 * 5.03}`
@@ -190,7 +189,6 @@ const AttendeeInsights = () => {
 
   const pieSegments = calculatePieSegments();
 
-  // Sample data
   const stats = {
     totalAttendees: 7600,
     totalAttendeesChange: '+15.3% vs last period',
@@ -202,7 +200,6 @@ const AttendeeInsights = () => {
     engagementChange: '+5.7% vs last period'
   };
 
-  // Age distribution data
   const ageDistribution = [
     { range: '18-24', count: 1200 },
     { range: '25-34', count: 2800 },
@@ -213,14 +210,12 @@ const AttendeeInsights = () => {
 
   const maxAge = Math.max(...ageDistribution.map(d => d.count));
 
-  // Gender distribution
   const genderData = {
     female: 52,
     male: 45,
     other: 3
   };
 
-  // Top locations
   const topLocations = [
     { rank: 1, city: 'San Francisco', count: 3200 },
     { rank: 2, city: 'New York', count: 2800 },
@@ -232,7 +227,6 @@ const AttendeeInsights = () => {
 
   const maxLocation = Math.max(...topLocations.map(l => l.count));
 
-  // Calculate max interested count for bar chart scaling
   const maxInterested = interestedData.length > 0 
     ? Math.max(...interestedData.map(e => e.interestedCount)) 
     : 1;
