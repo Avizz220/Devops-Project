@@ -13,11 +13,12 @@ output "backend_api_url" {
   value       = "http://${module.ec2.public_ips[0]}:4000/api"
 }
 
-output "rds_endpoint" {
-  description = "RDS MySQL endpoint"
-  value       = module.rds.db_endpoint
-  sensitive   = true
-}
+# RDS outputs - Disabled (using containerized MySQL)
+# output "rds_endpoint" {
+#   description = "RDS MySQL endpoint"
+#   value       = module.rds.db_endpoint
+#   sensitive   = true
+# }
 
 output "ec2_instance_ids" {
   description = "EC2 instance IDs"
@@ -29,19 +30,30 @@ output "ec2_public_ips" {
   value       = module.ec2.public_ips
 }
 
-output "database_connection_string" {
-  description = "Database connection string"
-  value       = "mysql://${var.db_username}:${var.db_password}@${module.rds.db_endpoint}/${var.db_name}"
-  sensitive   = true
+output "database_info" {
+  description = "Database connection info"
+  value       = "MySQL running in Docker container on EC2 (localhost:3306)"
 }
+
+# output "database_connection_string" {
+#   description = "Database connection string"
+#   value       = "mysql://${var.db_username}:${var.db_password}@${module.rds.db_endpoint}/${var.db_name}"
+#   sensitive   = true
+# }
 
 output "deployment_instructions" {
   description = "Post-deployment instructions"
   value = <<-EOT
-    FREE TIER Deployment Complete
+    ✅ Deployment Complete - Containerized Setup
+    
     Frontend: http://${module.ec2.public_ips[0]}
     Backend API: http://${module.ec2.public_ips[0]}:4000/api
-    Database: ${module.rds.db_endpoint}
-    SSH: ssh -i ~/.ssh/${var.key_name}.pem ec2-user@${module.ec2.public_ips[0]}
+    Database: MySQL container on EC2 (port 3306)
+    
+    SSH Access: ssh -i ~/.ssh/${var.key_name}.pem ec2-user@${module.ec2.public_ips[0]}
+    
+    Check containers: docker ps
+    View logs: docker-compose logs -f
+    Restart services: docker-compose restart
   EOT
 }
