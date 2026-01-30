@@ -11,6 +11,69 @@ pipeline {
     }
     
     stages {
+        stage('Setup Dependencies') {
+            steps {
+                script {
+                    echo '🔧 Checking and installing required dependencies...'
+                    sh '''
+                        # Function to check and install a package
+                        install_if_missing() {
+                            PACKAGE=$1
+                            COMMAND=$2
+                            
+                            if command -v $COMMAND &> /dev/null; then
+                                echo "✅ $PACKAGE is already installed"
+                            else
+                                echo "⚙️ Installing $PACKAGE..."
+                                
+                                # Detect OS and install
+                                if [ -f /etc/debian_version ]; then
+                                    sudo apt-get update -qq
+                                    sudo apt-get install -y $PACKAGE
+                                elif [ -f /etc/redhat-release ]; then
+                                    sudo yum install -y $PACKAGE
+                                else
+                                    echo "❌ Unknown OS. Please install $PACKAGE manually"
+                                    exit 1
+                                fi
+                                
+                                echo "✅ $PACKAGE installed successfully"
+                            fi
+                        }
+                        
+                        # Install jq for JSON parsing
+                        install_if_missing "jq" "jq"
+                        
+                        # Install unzip (needed for Terraform)
+                        install_if_missing "unzip" "unzip"
+                        
+                        # Install Terraform if not present
+                        if command -v terraform &> /dev/null; then
+                            echo "✅ Terraform is already installed: $(terraform version | head -1)"
+                        else
+                            echo "⚙️ Installing Terraform..."
+                            TERRAFORM_VERSION="1.5.0"
+                            cd /tmp
+                            wget -q https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip
+                            unzip -o terraform_${TERRAFORM_VERSION}_linux_amd64.zip
+                            sudo mv terraform /usr/local/bin/
+                            sudo chmod +x /usr/local/bin/terraform
+                            rm terraform_${TERRAFORM_VERSION}_linux_amd64.zip
+                            echo "✅ Terraform installed: $(terraform version | head -1)"
+                        fi
+                        
+                        echo ""
+                        echo "========================================="
+                        echo "✅ All dependencies ready!"
+                        echo "Terraform: $(terraform version | head -1)"
+                        echo "jq: $(jq --version)"
+                        echo "Docker: $(docker --version)"
+                        echo "========================================="
+                    '''
+                }
+            }
+        }
+        
         stage('Checkout') {
             steps {
                 echo '📥 Checking out code from GitHub....'
