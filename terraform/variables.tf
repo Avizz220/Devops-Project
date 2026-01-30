@@ -64,9 +64,9 @@ variable "db_instance_class" {
 
 # EC2 variables
 variable "instance_type" {
-  description = "EC2 instance type"
+  description = "EC2 instance type (Free Tier eligible)"
   type        = string
-  default     = "t2.micro"
+  default     = "t3.micro"  # t3.micro is more widely available in free tier
 }
 
 variable "key_name" {
