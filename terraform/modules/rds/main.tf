@@ -24,9 +24,9 @@ resource "aws_db_instance" "mysql" {
   engine_version        = "8.0"
   instance_class        = var.db_instance_class
   allocated_storage     = 20
-  max_allocated_storage = 100
-  storage_type          = "gp3"
-  storage_encrypted     = true
+  max_allocated_storage = 0  # Disable auto-scaling for free tier
+  storage_type          = "gp2"  # gp2 is free tier, gp3 is not
+  storage_encrypted     = false  # Encryption not available in free tier
 
   # Database configuration
   db_name  = var.db_name
