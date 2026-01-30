@@ -140,7 +140,7 @@ jobs:
         id: outputs
         run: |
           echo "Fetching deployment information..."
-          EC2_IP=$(terraform output -raw ec2_public_ips | jq -r '.[0]' || terraform output -json ec2_public_ips | jq -r '.[0]')
+          EC2_IP=$(terraform output -json ec2_public_ips | jq -r '.[0]')
           echo "ec2_ip=$EC2_IP" >> $GITHUB_OUTPUT
           echo "EC2 Public IP: $EC2_IP"
         working-directory: ./terraform
