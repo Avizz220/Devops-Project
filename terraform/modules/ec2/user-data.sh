@@ -25,13 +25,32 @@ cat > docker-compose.yml <<'EOF'
 version: '3.8'
 
 services:
+  mysql:
+    image: mysql:8.0
+    container_name: ${project_name}_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${db_password}
+      MYSQL_DATABASE: ${db_name}
+      MYSQL_USER: ${db_user}
+      MYSQL_PASSWORD: ${db_password}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${db_password}"]
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
   backend:
     image: ${dockerhub_username}/community-events-backend:${backend_image_tag}
     container_name: ${project_name}_backend
     restart: unless-stopped
     environment:
-      DB_HOST: ${db_host}
-      DB_PORT: ${db_port}
+      DB_HOST: mysql
+      DB_PORT: 3306
       DB_USER: ${db_user}
       DB_PASSWORD: ${db_password}
       DB_NAME: ${db_name}
@@ -41,11 +60,14 @@ services:
       - "${backend_port}:${backend_port}"
     volumes:
       - backend_uploads:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:${backend_port}/api/health"]
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 40s
 
   frontend:
     image: ${dockerhub_username}/community-events-frontend:${frontend_image_tag}
@@ -62,6 +84,8 @@ services:
 
 volumes:
   backend_uploads:
+    driver: local
+  mysql_data:
     driver: local
 EOF
 
