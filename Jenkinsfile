@@ -7,7 +7,7 @@ pipeline {
         BACKEND_IMAGE_NAME = 'community-events-backend'
         DOCKER_IMAGE_TAG = "${BUILD_NUMBER}"
         DOCKER_CREDENTIALS_ID = 'docker-hub-credentials'
-        AWS_DEFAULT_REGION = 'us-east-1'
+        AWS_DEFAULT_REGION = 'us-west-2'
     }
     
     stages {
@@ -175,7 +175,7 @@ pipeline {
                                 
                                 export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
                                 export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-                                export AWS_DEFAULT_REGION=us-east-1
+                                export AWS_DEFAULT_REGION=us-west-2
                                 
                                 echo "Initializing Terraform..."
                                 terraform init -upgrade -reconfigure
