@@ -64,7 +64,7 @@ pipeline {
             }
         }
         
-        stage('Cleanup') {
+        stage('Cleanup Docker Images') {
             steps {
                 script {
                     echo '🧹 Cleaning up local images...'
@@ -75,16 +75,88 @@ pipeline {
                 }
             }
         }
+        
+        stage('Terraform Init') {
+            steps {
+                script {
+                    echo '🔧 Initializing Terraform...'
+                    dir('terraform') {
+                        sh 'terraform init -upgrade'
+                    }
+                }
+            }
+        }
+        
+        stage('Terraform Plan') {
+            steps {
+                script {
+                    echo '📋 Creating Terraform execution plan...'
+                    dir('terraform') {
+                        withCredentials([
+                            string(credentialsId: 'aws-access-key-id', variable: 'AWS_ACCESS_KEY_ID'),
+                            string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
+                        ]) {
+                            sh '''
+                                export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+                                export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+                                terraform plan \
+                                    -var="frontend_image_tag=latest" \
+                                    -var="backend_image_tag=latest" \
+                                    -out=tfplan
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Terraform Apply') {
+            steps {
+                script {
+                    echo '🚀 Deploying infrastructure to AWS...'
+                    dir('terraform') {
+                        withCredentials([
+                            string(credentialsId: 'aws-access-key-id', variable: 'AWS_ACCESS_KEY_ID'),
+                            string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
+                        ]) {
+                            sh '''
+                                export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+                                export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+                                terraform apply -auto-approve tfplan
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Get Deployment Info') {
+            steps {
+                script {
+                    echo '📡 Fetching deployment information...'
+                    dir('terraform') {
+                        sh '''
+                            echo "========================================="
+                            echo "🌐 Application URLs:"
+                            terraform output -raw alb_dns_name || echo "ALB not configured"
+                            echo ""
+                            echo "========================================="
+                        '''
+                    }
+                }
+            }
+        }
     }
     
     post {
         success {
-            echo '✅ Pipeline completed successfully!'
+            echo '✅ DEPLOYMENT PIPELINE COMPLETED SUCCESSFULLY!'
             echo "🎉 Frontend image pushed: ${DOCKER_HUB_USERNAME}/${FRONTEND_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
             echo "🎉 Backend image pushed: ${DOCKER_HUB_USERNAME}/${BACKEND_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
+            echo "🚀 Application deployed to AWS!"
         }
         failure {
-            echo '❌ Pipeline failed!'
+            echo '❌ Pipeline failed! Check logs for details.'
         }
         always {
             echo '🏁 Pipeline finished.'

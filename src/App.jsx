@@ -1,3 +1,4 @@
+// Test: Automated deployment pipeline - Jan 30, 2026
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/Login/login';
