@@ -97,8 +97,9 @@ pipeline {
                             string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
                         ]) {
                             sh '''
-                                export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
-                                export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+                                export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                                export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+                                export AWS_DEFAULT_REGION=us-east-1
                                 terraform plan \
                                     -var="frontend_image_tag=latest" \
                                     -var="backend_image_tag=latest" \
@@ -120,8 +121,9 @@ pipeline {
                             string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
                         ]) {
                             sh '''
-                                export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
-                                export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+                                export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                                export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+                                export AWS_DEFAULT_REGION=us-east-1
                                 terraform apply -auto-approve tfplan
                             '''
                         }
@@ -138,8 +140,11 @@ pipeline {
                         sh '''
                             echo "========================================="
                             echo "🌐 Application URLs:"
-                            terraform output -raw alb_dns_name || echo "ALB not configured"
+                            EC2_IP=$(terraform output -json ec2_public_ips | jq -r '.[0]')
+                            echo "Frontend: http://${EC2_IP}"
+                            echo "Backend API: http://${EC2_IP}:4000/api"
                             echo ""
+                            echo "📦 Containers: MySQL, Backend, Frontend"
                             echo "========================================="
                         '''
                     }
