@@ -159,18 +159,28 @@ pipeline {
                         ]) {
                             sh '''
                                 set -e
-                                export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-                                export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-                                export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+                                echo "========================================="
+                                echo "Checking AWS Credentials..."
+                                echo "AWS_ACCESS_KEY_ID length: ${#AWS_ACCESS_KEY_ID}"
+                                echo "AWS_SECRET_ACCESS_KEY length: ${#AWS_SECRET_ACCESS_KEY}"
                                 
-                                echo "Verifying AWS credentials..."
-                                if [ -z "$AWS_ACCESS_KEY_ID" ]; then
-                                    echo "❌ AWS_ACCESS_KEY_ID is not set!"
+                                if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+                                    echo "❌ ERROR: AWS credentials are not set!"
+                                    echo "Please check Jenkins credentials configuration"
                                     exit 1
                                 fi
                                 
+                                echo "✅ AWS Credentials found"
+                                echo "========================================="
+                                
+                                export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                                export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+                                export AWS_DEFAULT_REGION=us-east-1
+                                
                                 echo "Initializing Terraform..."
                                 terraform init -upgrade -reconfigure
+                                
+                                echo "✅ Terraform initialized successfully"
                             '''
                         }
                     }
