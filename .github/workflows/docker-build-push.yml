@@ -136,11 +136,13 @@ jobs:
         run: terraform apply -auto-approve tfplan
         working-directory: ./terraform
       
-      - name: Get Deployment URLs
+      - name: Get Deployment Info
         id: outputs
         run: |
           echo "Fetching deployment information..."
-          terraform output -raw alb_dns_name || echo "ALB not configured"
+          EC2_IP=$(terraform output -raw ec2_public_ips | jq -r '.[0]' || terraform output -json ec2_public_ips | jq -r '.[0]')
+          echo "ec2_ip=$EC2_IP" >> $GITHUB_OUTPUT
+          echo "EC2 Public IP: $EC2_IP"
         working-directory: ./terraform
       
       - name: Deployment Summary
@@ -153,6 +155,13 @@ jobs:
           echo "  Frontend: ${{ secrets.DOCKERHUB_USERNAME }}/community-events-frontend:latest"
           echo "  Backend: ${{ secrets.DOCKERHUB_USERNAME }}/community-events-backend:latest"
           echo ""
-          echo "🚀 Application deployed to AWS!"
+          echo "🚀 Application URLs:"
+          echo "  Frontend: http://${{ steps.outputs.outputs.ec2_ip }}"
+          echo "  Backend API: http://${{ steps.outputs.outputs.ec2_ip }}:4000/api"
+          echo ""
+          echo "📦 Containers running on EC2:"
+          echo "  - MySQL Database (port 3306)"
+          echo "  - Backend API (port 4000)"
+          echo "  - Frontend (port 80)"
           echo "========================================="
   
