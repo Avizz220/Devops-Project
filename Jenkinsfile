@@ -145,9 +145,12 @@ pipeline {
                 script {
                     echo '🔧 Initializing Terraform...'
                     dir('terraform') {
-                        // Check if Terraform is installed
-                        sh 'which terraform || echo "Terraform not found in PATH"'
-                        sh 'terraform version || echo "Terraform command failed"'
+                        // Check Terraform installation
+                        sh 'terraform version'
+                        
+                        // Clean up any existing state locks
+                        sh 'rm -f .terraform.lock.hcl || true'
+                        sh 'rm -rf .terraform || true'
                         
                         // Initialize with AWS credentials
                         withCredentials([
@@ -155,9 +158,19 @@ pipeline {
                             string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
                         ]) {
                             sh '''
+                                set -e
                                 export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
                                 export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-                                terraform init -upgrade
+                                export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+                                
+                                echo "Verifying AWS credentials..."
+                                if [ -z "$AWS_ACCESS_KEY_ID" ]; then
+                                    echo "❌ AWS_ACCESS_KEY_ID is not set!"
+                                    exit 1
+                                fi
+                                
+                                echo "Initializing Terraform..."
+                                terraform init -upgrade -reconfigure
                             '''
                         }
                     }
