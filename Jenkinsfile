@@ -7,6 +7,7 @@ pipeline {
         BACKEND_IMAGE_NAME = 'community-events-backend'
         DOCKER_IMAGE_TAG = "${BUILD_NUMBER}"
         DOCKER_CREDENTIALS_ID = 'docker-hub-credentials'
+        AWS_DEFAULT_REGION = 'us-east-1'
     }
     
     stages {
@@ -81,7 +82,21 @@ pipeline {
                 script {
                     echo '🔧 Initializing Terraform...'
                     dir('terraform') {
-                        sh 'terraform init -upgrade'
+                        // Check if Terraform is installed
+                        sh 'which terraform || echo "Terraform not found in PATH"'
+                        sh 'terraform version || echo "Terraform command failed"'
+                        
+                        // Initialize with AWS credentials
+                        withCredentials([
+                            string(credentialsId: 'aws-access-key-id', variable: 'AWS_ACCESS_KEY_ID'),
+                            string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
+                        ]) {
+                            sh '''
+                                export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                                export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+                                terraform init -upgrade
+                            '''
+                        }
                     }
                 }
             }
@@ -97,13 +112,21 @@ pipeline {
                             string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
                         ]) {
                             sh '''
+                                set -e
+                                echo "Verifying AWS credentials..."
                                 export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
                                 export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-                                export AWS_DEFAULT_REGION=us-east-1
+                                export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+                                
+                                echo "Running Terraform plan..."
                                 terraform plan \
                                     -var="frontend_image_tag=latest" \
                                     -var="backend_image_tag=latest" \
-                                    -out=tfplan
+                                    -out=tfplan || {
+                                        echo "Terraform plan failed!"
+                                        terraform version
+                                        exit 1
+                                    }
                             '''
                         }
                     }
@@ -121,9 +144,12 @@ pipeline {
                             string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
                         ]) {
                             sh '''
+                                set -e
                                 export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
                                 export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-                                export AWS_DEFAULT_REGION=us-east-1
+                                export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+                                
+                                echo "Applying Terraform configuration..."
                                 terraform apply -auto-approve tfplan
                             '''
                         }
@@ -140,9 +166,23 @@ pipeline {
                         sh '''
                             echo "========================================="
                             echo "🌐 Application URLs:"
-                            EC2_IP=$(terraform output -json ec2_public_ips | jq -r '.[0]')
-                            echo "Frontend: http://${EC2_IP}"
-                            echo "Backend API: http://${EC2_IP}:4000/api"
+                            
+                            # Check if jq is available
+                            if command -v jq &> /dev/null; then
+                                EC2_IP=$(terraform output -json ec2_public_ips | jq -r '.[0]' 2>/dev/null || echo "Unable to fetch IP")
+                            else
+                                # Fallback without jq
+                                EC2_IP=$(terraform output ec2_public_ips | grep -oP '\\d+\\.\\d+\\.\\d+\\.\\d+' | head -1)
+                            fi
+                            
+                            if [ ! -z "$EC2_IP" ] && [ "$EC2_IP" != "Unable to fetch IP" ]; then
+                                echo "Frontend: http://${EC2_IP}"
+                                echo "Backend API: http://${EC2_IP}:4000/api"
+                            else
+                                echo "EC2 IP not available yet. Check Terraform outputs:"
+                                terraform output ec2_public_ips || echo "Output not found"
+                            fi
+                            
                             echo ""
                             echo "📦 Containers: MySQL, Backend, Frontend"
                             echo "========================================="
