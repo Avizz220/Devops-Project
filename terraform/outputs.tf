@@ -49,8 +49,10 @@ output "deployment_instructions" {
     Frontend: http://${module.ec2.public_ips[0]}
     Backend API: http://${module.ec2.public_ips[0]}:4000/api
     Database: MySQL container on EC2 (port 3306)
+    ${var.key_name != null && var.key_name != "" ? "\n    SSH Access: ssh -i ~/.ssh/${var.key_name}.pem ec2-user@${module.ec2.public_ips[0]}" : ""}
     
-    SSH Access: ssh -i ~/.ssh/${var.key_name}.pem ec2-user@${module.ec2.public_ips[0]}
+    Access via AWS Systems Manager Session Manager (no SSH key required):
+    aws ssm start-session --target ${module.ec2.instance_ids[0]}
     
     Check containers: docker ps
     View logs: docker-compose logs -f
