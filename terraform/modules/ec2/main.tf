@@ -81,7 +81,7 @@ resource "aws_instance" "app" {
   count                  = var.instance_count
   ami                    = data.aws_ami.amazon_linux.id
   instance_type          = var.instance_type
-  key_name               = var.key_name
+  key_name               = var.key_name != null && var.key_name != "" ? var.key_name : null
   subnet_id              = var.public_subnet_ids[count.index % length(var.public_subnet_ids)]
   vpc_security_group_ids = [var.security_group_id]
   iam_instance_profile   = aws_iam_instance_profile.ec2.name

@@ -70,9 +70,9 @@ variable "instance_type" {
 }
 
 variable "key_name" {
-  description = "SSH key pair name for EC2 instances"
+  description = "SSH key pair name for EC2 instances (optional - leave null for automated deployments without SSH)"
   type        = string
-  default     = "community-events-key"
+  default     = null
 }
 
 # Networking variables
