@@ -1,0 +1,376 @@
+/* Background image slider styles */
+.bg-slide {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  z-index: 0;
+  transition: opacity 1.5s cubic-bezier(.4,0,.2,1), transform 1.5s cubic-bezier(.4,0,.2,1);
+  transform: scale(1.08);
+  will-change: opacity, transform;
+}
+.bg-slide.active {
+  opacity: 1;
+  z-index: 1;
+  transform: scale(1);
+  animation: bgZoom 5s linear;
+}
+@keyframes bgZoom {
+  0% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+/* login.css */
+
+/* Message styling */
+.message {
+  padding: 12px;
+  margin-bottom: 20px;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 0.9rem;
+  animation: fadeIn 0.5s;
+}
+
+.message.success {
+  background-color: rgba(76, 175, 80, 0.3);
+  color: #e0f2e0;
+  border: 1px solid #a5d6a7;
+}
+
+.message.error {
+  background-color: rgba(244, 67, 54, 0.3);
+  color: #ffebee;
+  border: 1px solid #ef9a9a;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.login-bg {
+  min-height: 100vh;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  z-index: 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-size: cover;
+  background-position: center;
+}
+
+/* Enhanced background slide animations */
+.bg-slide {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0;
+  z-index: 0;
+  transition: all 2s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: scale(1.1) rotate(0.5deg);
+  will-change: opacity, transform;
+  background-color: #667eea; /* Fallback color */
+}
+
+.bg-slide.active {
+  opacity: 1;
+  z-index: 1;
+  transform: scale(1) rotate(0deg);
+  animation: bgZoomSlide 8s ease-in-out infinite;
+}
+
+@keyframes bgZoomSlide {
+  0% { 
+    transform: scale(1) rotate(0deg);
+    filter: brightness(1);
+  }
+  25% { 
+    transform: scale(1.05) rotate(-0.2deg);
+    filter: brightness(1.1);
+  }
+  50% { 
+    transform: scale(1.08) rotate(0.1deg);
+    filter: brightness(0.95);
+  }
+  75% { 
+    transform: scale(1.03) rotate(-0.1deg);
+    filter: brightness(1.05);
+  }
+  100% { 
+    transform: scale(1) rotate(0deg);
+    filter: brightness(1);
+  }
+}
+
+@keyframes bgZoom {
+  0% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+.login-bg .overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(8,12,20,0.22) 0%, rgba(8,12,20,0.12) 50%, rgba(255,255,255,0.02) 100%);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.login-bg::before, .login-bg::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  z-index: 0;
+  transition: opacity 2s cubic-bezier(.4,0,.2,1);
+  will-change: opacity;
+}
+.login-bg::before {
+  background-image: url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1500&q=80');
+  opacity: 1;
+  animation: loginBgFade1 16s infinite;
+}
+.login-bg::after {
+  background-image: url('https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=1500&q=80');
+  opacity: 0;
+  animation: loginBgFade2 16s infinite;
+}
+@keyframes loginBgFade1 {
+  0%, 40% { opacity: 1; }
+  50%, 90% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes loginBgFade2 {
+  0%, 40% { opacity: 0; }
+  50%, 90% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes bgFade {
+  0% {
+    filter: brightness(1) saturate(1);
+    background-position: 50% 50%;
+  }
+  50% {
+    filter: brightness(1.1) saturate(1.2);
+    background-position: 55% 45%;
+  }
+  100% {
+    filter: brightness(0.95) saturate(1.1);
+    background-position: 45% 55%;
+  }
+}
+
+/* Floating animated shapes */
+.login-bg::before, .login-bg::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.18;
+  z-index: 1;
+  pointer-events: none;
+}
+.login-bg::before {
+  width: 320px;
+  height: 320px;
+  left: -120px;
+  top: 10%;
+  background: linear-gradient(135deg, #667eea 60%, #764ba2 100%);
+  animation: float1 10s ease-in-out infinite alternate;
+}
+.login-bg::after {
+  width: 220px;
+  height: 220px;
+  right: -80px;
+  bottom: 8%;
+  background: linear-gradient(135deg, #764ba2 60%, #667eea 100%);
+  animation: float2 13s ease-in-out infinite alternate;
+}
+@keyframes float1 {
+  0% { transform: translateY(0) scale(1); }
+  100% { transform: translateY(40px) scale(1.08); }
+}
+@keyframes float2 {
+  0% { transform: translateY(0) scale(1); }
+  100% { transform: translateY(-30px) scale(1.12); }
+}
+
+@keyframes fadeInBg {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.login-container {
+  position: relative;
+  z-index: 20; /* ensure container appears above background slides */
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(6px) saturate(120%);
+  border-radius: 20px;
+  box-shadow: 0 12px 40px 0 rgba(31,38,135,0.35);
+  padding: 2.5rem 2rem;
+  width: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: slideIn 1.2s cubic-bezier(.68,-0.55,.27,1.55);
+}
+
+@keyframes slideIn {
+  from { transform: translateY(-60px) scale(0.9); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.login-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  color: #2d3748;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 8px #e2e8f0;
+}
+
+.login-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.input-group label {
+  font-size: 1rem;
+  color: #4a5568;
+  font-weight: 500;
+}
+
+.login-container, .login-form, .input-group input, .input-group select {
+  color: #1f2937;
+}
+
+.login-container, .login-form, .input-group input, .input-group select { box-sizing: border-box; }
+
+.input-group input {
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  font-size: 1rem;
+  transition: border 0.2s, box-shadow 0.2s;
+  outline: none;
+  width: 100%;
+}
+
+.input-group input:focus {
+  border: 1.5px solid #3182ce;
+  box-shadow: 0 0 0 2px #90cdf4;
+}
+
+
+.password-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.password-wrapper input {
+  width: 100%;
+  padding-right: 2.5rem;
+  /* Make input wider and reserve space for the eye icon */
+}
+
+.toggle-password {
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  font-size: 1.3rem;
+  color: #a0aec0;
+  transition: color 0.2s;
+  z-index: 2;
+  background: transparent;
+  border: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+
+.toggle-password {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  font-size: 1.2rem;
+  color: #a0aec0;
+  transition: color 0.2s;
+}
+.toggle-password:hover {
+  color: #3182ce;
+}
+
+.login-btn {
+  background: linear-gradient(90deg, #9333ea 0%, #7c3aed 100%) !important;
+  color: #fff !important;
+  font-weight: 600;
+  border: none !important;
+  border-radius: 8px;
+  padding: 0.8rem 0;
+  font-size: 1.1rem;
+  margin-top: 0.5rem;
+  cursor: pointer;
+  box-shadow: 0 4px 16px 0 rgba(147,51,234,0.25) !important;
+  transition: background 0.3s, transform 0.2s;
+}
+.login-btn:hover {
+  background: linear-gradient(90deg, #7c3aed 0%, #6b21a8 100%) !important;
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 6px 20px 0 rgba(147,51,234,0.35) !important;
+}
+.login-btn:active {
+  background: linear-gradient(90deg, #6b21a8 0%, #581c87 100%) !important;
+}
+
+.login-footer {
+  margin-top: 1.2rem;
+  text-align: center;
+  font-size: 0.98rem;
+  color: #718096;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  animation: fadeInFooter 1.5s 0.5s backwards;
+}
+@keyframes fadeInFooter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.login-footer a {
+  color: #764ba2;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+.login-footer a:hover {
+  color: #667eea;
+  text-decoration: underline;
+}

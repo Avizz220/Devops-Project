@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Storage - Community Events</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 500px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        p {
+            color: #666;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        button {
+            background: linear-gradient(135deg, #ff9900 0%, #ff6600 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 10px;
+            transition: transform 0.3s ease;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        .success {
+            display: none;
+            color: #28a745;
+            font-weight: 600;
+            margin-top: 20px;
+        }
+        .info {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Clear Browser Storage</h1>
+        <p>If you're seeing the login page instead of the landing page, you might have old session data stored in your browser.</p>
+        
+        <button onclick="clearStorage()">Clear All Data</button>
+        <button onclick="goToApp()">Go to App</button>
+        
+        <div class="success" id="success">
+            ✅ Storage cleared successfully!<br>
+            Now click "Go to App" to see the landing page.
+        </div>
+        
+        <div class="info">
+            <strong>What this does:</strong><br>
+            • Clears localStorage<br>
+            • Clears sessionStorage<br>
+            • Logs you out<br>
+            • Resets to landing page
+        </div>
+    </div>
+
+    <script>
+        function clearStorage() {
+            // Clear all storage
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // Show success message
+            document.getElementById('success').style.display = 'block';
+            
+            console.log('✅ All storage cleared!');
+        }
+
+        function goToApp() {
+            // Redirect to root
+            window.location.href = '/';
+        }
+
+        // Log current storage status
+        console.log('Current localStorage:', localStorage);
+        console.log('Current sessionStorage:', sessionStorage);
+    </script>
+</body>
+</html>

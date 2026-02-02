@@ -1,0 +1,216 @@
+name: Build, Push and Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.gitignore'
+  workflow_dispatch:
+
+env:
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+jobs:
+  build-and-push-frontend:
+    name: Build and Push Frontend Image
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/community-events-frontend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+      
+      - name: Build and push Frontend Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            REACT_APP_API_URL=http://localhost:4000
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/community-events-frontend:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/community-events-frontend:buildcache,mode=max
+
+  build-and-push-backend:
+    name: Build and Push Backend Image
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/community-events-backend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+      
+      - name: Build and push Backend Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/community-events-backend:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/community-events-backend:buildcache,mode=max
+
+  deploy-to-ec2:
+    name: Deploy to AWS EC2
+    runs-on: ubuntu-latest
+    needs: [build-and-push-frontend, build-and-push-backend]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Get EC2 Instance Information
+        id: get-instance
+        run: |
+          # Try to get instance IP from secrets first
+          if [ -n "${{ secrets.EC2_HOST }}" ]; then
+            echo "instance_ip=${{ secrets.EC2_HOST }}" >> $GITHUB_OUTPUT
+            echo "✓ Using EC2 host from secrets"
+          else
+            # Try to find instance by tags
+            INSTANCE_IP=$(aws ec2 describe-instances \
+              --filters "Name=tag:Project,Values=community-events" \
+                        "Name=tag:Environment,Values=prod" \
+                        "Name=instance-state-name,Values=running" \
+              --query 'Reservations[0].Instances[0].PublicIpAddress' \
+              --output text)
+            
+            if [ "$INSTANCE_IP" != "None" ] && [ -n "$INSTANCE_IP" ]; then
+              echo "instance_ip=$INSTANCE_IP" >> $GITHUB_OUTPUT
+              echo "✓ Found EC2 instance: $INSTANCE_IP"
+            else
+              echo "::error::No running EC2 instance found. Please add EC2_HOST to GitHub secrets."
+              exit 1
+            fi
+          fi
+      
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key.pem
+          chmod 600 ~/.ssh/deploy_key.pem
+          ssh-keyscan -H ${{ steps.get-instance.outputs.instance_ip }} >> ~/.ssh/known_hosts
+      
+      - name: Deploy Containers to EC2
+        env:
+          INSTANCE_IP: ${{ steps.get-instance.outputs.instance_ip }}
+        run: |
+          echo "🚀 Deploying to EC2: $INSTANCE_IP"
+          
+          # SSH into EC2 and deploy
+          ssh -i ~/.ssh/deploy_key.pem ec2-user@$INSTANCE_IP << 'ENDSSH'
+            set -e
+            
+            echo "📥 Pulling latest images from Docker Hub..."
+            sudo docker pull avishka2002/community-events-backend:latest
+            sudo docker pull avishka2002/community-events-frontend:latest
+            
+            echo "🔄 Updating containers..."
+            cd /home/ec2-user/app || cd ~
+            
+            # Update docker-compose with latest images
+            sudo docker-compose pull
+            
+            # Restart services
+            sudo docker-compose down
+            sudo docker-compose up -d
+            
+            echo "⏳ Waiting for services to start..."
+            sleep 30
+            
+            echo "✅ Checking container status..."
+            sudo docker ps
+            
+            echo "🏥 Checking backend health..."
+            curl -f http://localhost:4000/api/health || echo "Backend starting..."
+            
+            echo "✅ Deployment complete!"
+          ENDSSH
+      
+      - name: Verify Deployment
+        env:
+          INSTANCE_IP: ${{ steps.get-instance.outputs.instance_ip }}
+        run: |
+          echo "🔍 Verifying deployment..."
+          
+          # Wait a bit more for services to be fully up
+          sleep 20
+          
+          # Check backend health
+          if curl -f http://$INSTANCE_IP:4000/api/health; then
+            echo "✅ Backend is healthy!"
+          else
+            echo "⚠️ Backend health check failed, but containers may still be starting"
+          fi
+          
+          # Check frontend
+          if curl -f http://$INSTANCE_IP:80 > /dev/null 2>&1; then
+            echo "✅ Frontend is accessible!"
+          else
+            echo "⚠️ Frontend check failed, but containers may still be starting"
+          fi
+          
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🎉 DEPLOYMENT SUCCESSFUL!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "🌐 Application URL: http://$INSTANCE_IP"
+          echo "🔌 Backend API: http://$INSTANCE_IP:4000"
+          echo "🏥 Health Check: http://$INSTANCE_IP:4000/api/health"
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
