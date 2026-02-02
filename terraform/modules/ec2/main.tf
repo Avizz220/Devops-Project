@@ -1,13 +1,13 @@
 # EC2 Module - Compute instances to run Docker containers
 
-# Get latest Ubuntu 22.04 AMI (Jammy) - Stable
+# Get latest Ubuntu 24.04 AMI
 data "aws_ami" "ubuntu" {
   most_recent = true
   owners      = ["099720109477"] # Canonical
 
   filter {
     name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+    values = ["ubuntu/images/hvm-ssd/ubuntu-noble-24.04-amd64-server-*"]
   }
 
   filter {
@@ -106,7 +106,7 @@ resource "aws_instance" "app" {
   }
 
   lifecycle {
-    ignore_changes = [user_data, ami]
+    ignore_changes = [user_data]
   }
 }
 

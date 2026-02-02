@@ -175,37 +175,12 @@ pipeline {
                                 
                                 export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
                                 export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-                                export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+                                export AWS_DEFAULT_REGION=us-west-2
                                 
                                 echo "Initializing Terraform..."
                                 terraform init -upgrade -reconfigure
-
-                                echo "🔧 Ensuring we target the CORRECT existing instance (i-064119cb154739571)..."
-                                TARGET_INSTANCE_ID="i-064119cb154739571"
                                 
-                                # Check if the specific instance is already in state
-                                # We use a simple grep here to avoid complex json parsing issues if jq isn't perfect
-                                if terraform state list | grep -q "module.ec2.aws_instance.app\\[0\\]"; then
-                                    echo "Resource is in state. Verifying ID..."
-                                    # Temporarily allow failure for show command
-                                    set +e
-                                    CURRENT_ID=$(terraform state show module.ec2.aws_instance.app[0] | grep "\"id\"" | cut -d'=' -f2 | tr -d ' "')
-                                    set -e
-                                    
-                                    if [ "$CURRENT_ID" != "$TARGET_INSTANCE_ID" ]; then
-                                        echo "⚠️ State Points to wrong instance ($CURRENT_ID). Removing..."
-                                        terraform state rm module.ec2.aws_instance.app[0]
-                                        echo "🔄 Importing correct instance $TARGET_INSTANCE_ID..."
-                                        terraform import module.ec2.aws_instance.app[0] $TARGET_INSTANCE_ID
-                                    else
-                                        echo "✅ State correctly matches $TARGET_INSTANCE_ID"
-                                    fi
-                                else
-                                    echo "Resource not in state. Importing $TARGET_INSTANCE_ID..."
-                                    terraform import module.ec2.aws_instance.app[0] $TARGET_INSTANCE_ID
-                                fi
-
-                                echo "✅ Terraform initialized and state corrected"
+                                echo "✅ Terraform initialized successfully"
                             '''
                         }
                     }
@@ -280,14 +255,13 @@ pipeline {
                             
                             # Check if jq is available
                             if command -v jq &> /dev/null; then
-                                # Use -raw-output (-r) to handle string output correctly
-                                EC2_IP=$(terraform output -json ec2_public_ips | jq -r '.[0] // empty')
+                                EC2_IP=$(terraform output -json ec2_public_ips | jq -r '.[0]' 2>/dev/null || echo "Unable to fetch IP")
                             else
                                 # Fallback without jq
-                                EC2_IP=$(terraform output ec2_public_ips | grep -oP '\d+\.\d+\.\d+\.\d+' | head -1)
+                                EC2_IP=$(terraform output ec2_public_ips | grep -oP '\\d+\\.\\d+\\.\\d+\\.\\d+' | head -1)
                             fi
                             
-                            if [ ! -z "$EC2_IP" ] && [ "$EC2_IP" != "null" ]; then
+                            if [ ! -z "$EC2_IP" ] && [ "$EC2_IP" != "Unable to fetch IP" ]; then
                                 echo "Frontend: http://${EC2_IP}"
                                 echo "Backend API: http://${EC2_IP}:4000/api"
                             else
