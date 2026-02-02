@@ -7,7 +7,7 @@ pipeline {
         BACKEND_IMAGE_NAME = 'community-events-backend'
         DOCKER_IMAGE_TAG = "${BUILD_NUMBER}"
         DOCKER_CREDENTIALS_ID = 'docker-hub-credentials'
-        AWS_DEFAULT_REGION = 'us-west-2'
+        AWS_DEFAULT_REGION = 'us-east-1'
     }
     
     stages {

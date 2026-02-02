@@ -1,0 +1,24 @@
+{
+  "commands": [
+    "echo '=== Pulling latest frontend image ==='",
+    "sudo docker pull avishka2002/community-events-frontend:latest",
+    "echo ''",
+    "echo '=== Stopping old frontend container ==='",
+    "sudo docker stop community_frontend 2>/dev/null || true",
+    "sudo docker rm community_frontend 2>/dev/null || true",
+    "echo ''",
+    "echo '=== Starting updated frontend container ==='",
+    "sudo docker run -d --name community_frontend --restart unless-stopped -p 80:80 --network community-network avishka2002/community-events-frontend:latest",
+    "echo ''",
+    "echo '=== Waiting for container to start ==='",
+    "sleep 10",
+    "echo ''",
+    "echo '=== Container status ==='",
+    "sudo docker ps --filter name=community_frontend --format 'table {{.Names}}\\t{{.Status}}\\t{{.Ports}}'",
+    "echo ''",
+    "echo '=== Testing frontend ==='",
+    "curl -s -o /dev/null -w 'HTTP Status: %{http_code}\\n' http://localhost/",
+    "echo ''",
+    "echo '✅ Frontend updated successfully!'"
+  ]
+}

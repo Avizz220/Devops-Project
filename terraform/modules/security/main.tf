@@ -39,37 +39,37 @@ resource "aws_security_group" "alb" {
   }
 }
 
-# EC2 Security Group (allows traffic from internet - no ALB for free tier)
+# EC2 Security Group (allows traffic from your IP)
 resource "aws_security_group" "ec2" {
   name_prefix = "${var.project_name}-ec2-sg-"
   description = "Security group for EC2 instances"
   vpc_id      = var.vpc_id
 
-  # Allow HTTP from internet (no ALB for free tier)
+  # Allow HTTP from your IP
   ingress {
-    description = "HTTP from internet"
+    description = "HTTP from your IP"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["175.157.21.193/32"]
   }
 
-  # Allow Backend API from internet (no ALB for free tier)
+  # Allow Backend API from your IP
   ingress {
-    description = "Backend API from internet"
+    description = "Backend API from your IP"
     from_port   = 4000
     to_port     = 4000
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["175.157.21.193/32"]
   }
 
-  # Allow SSH from anywhere (restrict this in production!)
+  # Allow SSH from your IP
   ingress {
-    description = "SSH from anywhere"
+    description = "SSH from your IP"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["175.157.21.193/32"]
   }
 
   egress {

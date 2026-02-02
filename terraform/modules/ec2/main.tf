@@ -1,13 +1,13 @@
 # EC2 Module - Compute instances to run Docker containers
 
-# Get latest Amazon Linux 2023 AMI
-data "aws_ami" "amazon_linux" {
+# Get latest Ubuntu 24.04 AMI
+data "aws_ami" "ubuntu" {
   most_recent = true
-  owners      = ["amazon"]
+  owners      = ["099720109477"] # Canonical
 
   filter {
     name   = "name"
-    values = ["al2023-ami-*-x86_64"]
+    values = ["ubuntu/images/hvm-ssd/ubuntu-noble-24.04-amd64-server-*"]
   }
 
   filter {
@@ -79,7 +79,7 @@ locals {
 # EC2 Instances
 resource "aws_instance" "app" {
   count                  = var.instance_count
-  ami                    = data.aws_ami.amazon_linux.id
+  ami                    = data.aws_ami.ubuntu.id
   instance_type          = var.instance_type
   key_name               = var.key_name != null && var.key_name != "" ? var.key_name : null
   subnet_id              = var.public_subnet_ids[count.index % length(var.public_subnet_ids)]

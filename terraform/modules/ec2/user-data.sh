@@ -43,10 +43,6 @@ services:
     image: avishka2002/community-events-backend:latest
     container_name: community_backend
     restart: unless-stopped
-    environment:
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USER: ${db_user}
     pull_policy: always
     environment:
       DB_HOST: mysql
