@@ -52,7 +52,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            REACT_APP_API_URL=http://localhost:4000
+            REACT_APP_API_URL=http://13.220.61.29:4000
           cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/community-events-frontend:buildcache
           cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/community-events-frontend:buildcache,mode=max
 
