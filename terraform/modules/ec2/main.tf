@@ -1,19 +1,7 @@
 # EC2 Module - Compute instances to run Docker containers
 
-# Get latest Ubuntu 24.04 AMI
-data "aws_ami" "ubuntu" {
-  most_recent = true
-  owners      = ["099720109477"] # Canonical
-
-  filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-noble-24.04-amd64-server-*"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
+data "aws_ssm_parameter" "ubuntu_2404_ami" {
+  name = "/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id"
 }
 
 # IAM Role for EC2 instances
@@ -79,7 +67,7 @@ locals {
 # EC2 Instances
 resource "aws_instance" "app" {
   count                  = var.instance_count
-  ami                    = data.aws_ami.ubuntu.id
+  ami                    = data.aws_ssm_parameter.ubuntu_2404_ami.value
   instance_type          = var.instance_type
   key_name               = var.key_name != null && var.key_name != "" ? var.key_name : null
   subnet_id              = var.public_subnet_ids[count.index % length(var.public_subnet_ids)]
