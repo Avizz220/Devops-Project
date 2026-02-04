@@ -45,13 +45,13 @@ resource "aws_security_group" "ec2" {
   description = "Security group for EC2 instances"
   vpc_id      = var.vpc_id
 
-  # Allow HTTP from your IP
+  # Allow HTTP from internet (public site)
   ingress {
-    description = "HTTP from your IP"
+    description = "HTTP from internet"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["175.157.21.193/32"]
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   # Allow Backend API from your IP
