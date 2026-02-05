@@ -244,6 +244,41 @@ pipeline {
             }
         }
         
+        stage('Deploy to EC2') {
+            steps {
+                script {
+                    echo '🔄 Restarting containers on EC2 with latest images...'
+                    dir('terraform') {
+                        withCredentials([
+                            string(credentialsId: 'aws-access-key-id', variable: 'AWS_ACCESS_KEY_ID'),
+                            string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
+                        ]) {
+                            sh '''
+                                export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                                export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+                                export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+                                
+                                # Get instance ID
+                                INSTANCE_ID=$(terraform output -json ec2_instance_ids | jq -r '.[0]' 2>/dev/null || terraform output ec2_instance_ids | grep -oP 'i-[a-z0-9]+' | head -1)
+                                
+                                echo "Deploying to instance: $INSTANCE_ID"
+                                
+                                # Send command to pull and restart containers
+                                aws ssm send-command \
+                                    --instance-ids "$INSTANCE_ID" \
+                                    --document-name "AWS-RunShellScript" \
+                                    --comment "Deploy latest Docker images" \
+                                    --parameters 'commands=["cd /opt/community-events","sudo docker-compose pull","sudo docker-compose up -d","sleep 10","sudo docker-compose ps"]' \
+                                    --output text || echo "SSM command failed - instance may not be ready yet"
+                                    
+                                echo "✅ Deployment initiated!"
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+        
         stage('Get Deployment Info') {
             steps {
                 script {
@@ -271,6 +306,7 @@ pipeline {
                             
                             echo ""
                             echo "📦 Containers: MySQL, Backend, Frontend"
+                            echo "⏳ Wait 30 seconds for containers to start, then visit the URL above"
                             echo "========================================="
                         '''
                     }
