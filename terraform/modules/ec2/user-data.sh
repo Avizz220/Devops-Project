@@ -3,9 +3,7 @@ set -e
 
 # Update and install dependencies
 sudo apt-get update
-sudo apt-get install -y docker.io unzip
-sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
+sudo apt-get install -y docker.io docker-compose
 
 # Start Docker
 sudo systemctl start docker
