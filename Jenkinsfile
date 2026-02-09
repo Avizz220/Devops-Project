@@ -154,11 +154,17 @@ pipeline {
                 script {
                     echo '🔧 Initializing Terraform...'
                     dir('terraform') {
+                        // Configure Terraform plugin cache via CLI config
+                        sh '''
+                            echo "plugin_cache_dir   = \\"$HOME/.terraform.d/plugin-cache\\"" > $HOME/.terraformrc
+                            mkdir -p $HOME/.terraform.d/plugin-cache
+                        '''
+                        
                         // Check Terraform installation
                         sh 'terraform version'
                         
-                        // Clean up any existing state locks (but keep plugins)
-                        sh 'rm -f .terraform.lock.hcl || true'
+                        // Clean up any existing state locks checks (optional)
+                        sh 'rm -f .terraform/terraform.tfstate || true'
                         
                         // Initialize with AWS credentials
                         withCredentials([
@@ -186,7 +192,8 @@ pipeline {
                                 export AWS_DEFAULT_REGION=us-west-2
                                 
                                 echo "Initializing Terraform..."
-                                terraform init -upgrade -reconfigure
+                                # Use standard init (uses cache, respects lock file)
+                                terraform init
                                 
                                 echo "✅ Terraform initialized successfully"
                             '''
