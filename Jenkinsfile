@@ -12,6 +12,8 @@ pipeline {
         DOCKER_IMAGE_TAG = "${BUILD_NUMBER}"
         DOCKER_CREDENTIALS_ID = 'docker-hub-credentials'
         AWS_DEFAULT_REGION = 'us-east-1'
+        // Enable Terraform plugin caching to speed up init
+        TF_PLUGIN_CACHE_DIR = "${HOME}/.terraform.d/plugin-cache"
     }
     
     stages {
@@ -19,6 +21,9 @@ pipeline {
             steps {
                 script {
                     echo '🔧 Checking and installing required dependencies...'
+                    // Create Terraform plugin cache directory
+                    sh 'mkdir -p ${TF_PLUGIN_CACHE_DIR}'
+                    
                     sh '''
                         # Function to check and install a package
                         install_if_missing() {
@@ -152,9 +157,8 @@ pipeline {
                         // Check Terraform installation
                         sh 'terraform version'
                         
-                        // Clean up any existing state locks
+                        // Clean up any existing state locks (but keep plugins)
                         sh 'rm -f .terraform.lock.hcl || true'
-                        sh 'rm -rf .terraform || true'
                         
                         // Initialize with AWS credentials
                         withCredentials([
