@@ -94,3 +94,42 @@
   font-size: 1.5rem;
   color: #7f8c8d;
 }
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .home-container {
+    padding: 20px 15px;
+  }
+
+  .welcome-banner {
+    padding: 20px;
+  }
+
+  .welcome-banner h1 {
+    font-size: 1.8rem;
+  }
+
+  .welcome-banner p {
+    font-size: 1rem;
+  }
+
+  .user-info {
+    padding: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .welcome-banner h1 {
+    font-size: 1.5rem;
+  }
+
+  .info-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+
+  .info-row span:last-child {
+    word-break: break-all;
+  }
+}
