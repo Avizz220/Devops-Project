@@ -249,7 +249,6 @@ ENDSSH
                             
                             echo "✅ Successfully deployed to production!"
                         '''
-                        }
                     }
                 }
             }
