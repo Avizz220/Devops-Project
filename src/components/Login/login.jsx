@@ -158,7 +158,7 @@ const Login = () => {
             />
           </div>
           <div className="input-group">
-            <label>Password</label>
+            <label>Passw</label>
             <div className="password-wrapper">
               <input
                 type={showPassword ? 'text' : 'password'}

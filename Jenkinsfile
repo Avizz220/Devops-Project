@@ -257,11 +257,16 @@ pipeline {
                                 --comment "Deploy latest Docker images from Jenkins" \
                                 --parameters 'commands=[
                                     "cd /opt/community-events",
+                                    "echo Stopping containers...",
+                                    "sudo docker-compose down",
+                                    "echo Removing old images...",
+                                    "sudo docker rmi avishka2002/community-events-frontend:latest || true",
+                                    "sudo docker rmi avishka2002/community-events-backend:latest || true",
                                     "echo Pulling latest images...",
                                     "sudo docker-compose pull",
-                                    "echo Restarting containers...",
+                                    "echo Starting containers...",
                                     "sudo docker-compose up -d",
-                                    "sleep 10",
+                                    "sleep 15",
                                     "echo Container status:",
                                     "sudo docker-compose ps",
                                     "echo Deployment complete!"
