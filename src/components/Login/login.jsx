@@ -145,7 +145,7 @@ const Login = () => {
         );
       })}
       <div className="login-container">
-        <h2 className="login-title">Welcome Back!</h2>
+        <h2 className="login-title">Back!</h2>
         <form className="login-form" onSubmit={handleLogin}>
           <div className="input-group">
             <label>Email</label>

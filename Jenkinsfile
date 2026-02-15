@@ -20,8 +20,8 @@ pipeline {
         stage('Setup Dependencies') {
             steps {
                 script {
-                    echo '🔧 Checking and installing required dependencies...'
-                    // Create Terraform plugin cache directory
+                    echo 'Checking and installing required dependencies...'
+                   
                     sh 'mkdir -p ${TF_PLUGIN_CACHE_DIR}'
                     
                     sh '''
@@ -31,9 +31,9 @@ pipeline {
                             COMMAND=$2
                             
                             if command -v $COMMAND &> /dev/null; then
-                                echo "✅ $PACKAGE is already installed"
+                                echo "$PACKAGE is already installed"
                             else
-                                echo "⚙️ Installing $PACKAGE..."
+                                echo "Installing $PACKAGE..."
                                 
                                 # Detect OS and install
                                 if [ -f /etc/debian_version ]; then
@@ -42,11 +42,11 @@ pipeline {
                                 elif [ -f /etc/redhat-release ]; then
                                     sudo yum install -y $PACKAGE
                                 else
-                                    echo "❌ Unknown OS. Please install $PACKAGE manually"
+                                    echo "Unknown OS. Please install $PACKAGE manually"
                                     exit 1
                                 fi
                                 
-                                echo "✅ $PACKAGE installed successfully"
+                                echo "$PACKAGE installed successfully"
                             fi
                         }
                         
@@ -58,9 +58,9 @@ pipeline {
                         
                         # Install Terraform if not present
                         if command -v terraform &> /dev/null; then
-                            echo "✅ Terraform is already installed: $(terraform version | head -1)"
+                            echo "Terraform is already installed: $(terraform version | head -1)"
                         else
-                            echo "⚙️ Installing Terraform..."
+                            echo "Installing Terraform..."
                             TERRAFORM_VERSION="1.5.0"
                             cd /tmp
                             wget -q https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip
@@ -68,12 +68,12 @@ pipeline {
                             sudo mv terraform /usr/local/bin/
                             sudo chmod +x /usr/local/bin/terraform
                             rm terraform_${TERRAFORM_VERSION}_linux_amd64.zip
-                            echo "✅ Terraform installed: $(terraform version | head -1)"
+                            echo "Terraform installed: $(terraform version | head -1)"
                         fi
                         
                         echo ""
                         echo "========================================="
-                        echo "✅ All dependencies ready!"
+                        echo "All dependencies ready!"
                         echo "Terraform: $(terraform version | head -1)"
                         echo "jq: $(jq --version)"
                         echo "Docker: $(docker --version)"
@@ -85,7 +85,7 @@ pipeline {
         
         stage('Checkout') {
             steps {
-                echo '📥 Checking out code from GitHub....'
+                echo 'Checking out code from GitHub....'
                 checkout scm
             }
         }
@@ -93,7 +93,7 @@ pipeline {
         stage('Build Frontend Image') {
             steps {
                 script {
-                    echo '🔨 Building Frontend Docker image...'
+                    echo 'Building Frontend Docker image...'
                     sh """
                         docker build -t ${DOCKER_HUB_USERNAME}/${FRONTEND_IMAGE_NAME}:${DOCKER_IMAGE_TAG} .
                         docker tag ${DOCKER_HUB_USERNAME}/${FRONTEND_IMAGE_NAME}:${DOCKER_IMAGE_TAG} ${DOCKER_HUB_USERNAME}/${FRONTEND_IMAGE_NAME}:latest
@@ -105,7 +105,7 @@ pipeline {
         stage('Build Backend Image') {
             steps {
                 script {
-                    echo '🔨 Building Backend Docker image...'
+                    echo 'Building Backend Docker image...'
                     sh """
                         docker build -t ${DOCKER_HUB_USERNAME}/${BACKEND_IMAGE_NAME}:${DOCKER_IMAGE_TAG} -f backend/Dockerfile ./backend
                         docker tag ${DOCKER_HUB_USERNAME}/${BACKEND_IMAGE_NAME}:${DOCKER_IMAGE_TAG} ${DOCKER_HUB_USERNAME}/${BACKEND_IMAGE_NAME}:latest
@@ -117,7 +117,7 @@ pipeline {
         stage('Push to Docker Hub') {
             steps {
                 script {
-                    echo '🚀 Pushing Docker images to Docker Hub...'
+                    echo 'Pushing Docker images to Docker Hub...'
                     withCredentials([usernamePassword(credentialsId: DOCKER_CREDENTIALS_ID, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                         sh """
                             echo "\$DOCKER_PASS" | docker login -u "\$DOCKER_USER" --password-stdin
@@ -140,7 +140,7 @@ pipeline {
         stage('Cleanup Docker Images') {
             steps {
                 script {
-                    echo '🧹 Cleaning up local images...'
+                    echo 'Cleaning up local images...'
                     sh """
                         docker rmi ${DOCKER_HUB_USERNAME}/${FRONTEND_IMAGE_NAME}:${DOCKER_IMAGE_TAG} || true
                         docker rmi ${DOCKER_HUB_USERNAME}/${BACKEND_IMAGE_NAME}:${DOCKER_IMAGE_TAG} || true
@@ -152,7 +152,7 @@ pipeline {
         stage('Terraform Init') {
             steps {
                 script {
-                    echo '🔧 Initializing Terraform...'
+                    echo 'Initializing Terraform...'
                     dir('terraform') {
                         // Configure Terraform plugin cache via CLI config
                         sh '''
@@ -179,12 +179,12 @@ pipeline {
                                 echo "AWS_SECRET_ACCESS_KEY length: ${#AWS_SECRET_ACCESS_KEY}"
                                 
                                 if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
-                                    echo "❌ ERROR: AWS credentials are not set!"
+                                    echo "ERROR: AWS credentials are not set!"
                                     echo "Please check Jenkins credentials configuration"
                                     exit 1
                                 fi
                                 
-                                echo "✅ AWS Credentials found"
+                                echo "AWS Credentials found"
                                 echo "========================================="
                                 
                                 export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
@@ -195,7 +195,7 @@ pipeline {
                                 # Use standard init (uses cache, respects lock file)
                                 terraform init
                                 
-                                echo "✅ Terraform initialized successfully"
+                                echo "Terraform initialized successfully"
                             '''
                         }
                     }
@@ -206,7 +206,7 @@ pipeline {
         stage('Terraform Plan') {
             steps {
                 script {
-                    echo '📋 Creating Terraform execution plan...'
+                    echo 'Creating Terraform execution plan...'
                     dir('terraform') {
                         withCredentials([
                             string(credentialsId: 'aws-access-key-id', variable: 'AWS_ACCESS_KEY_ID'),
@@ -238,7 +238,7 @@ pipeline {
         stage('Terraform Apply') {
             steps {
                 script {
-                    echo '🚀 Deploying infrastructure to AWS...'
+                    echo 'Deploying infrastructure to AWS...'
                     dir('terraform') {
                         withCredentials([
                             string(credentialsId: 'aws-access-key-id', variable: 'AWS_ACCESS_KEY_ID'),
@@ -262,7 +262,7 @@ pipeline {
         stage('Deploy to EC2') {
             steps {
                 script {
-                    echo '🔄 Restarting containers on EC2 with latest images...'
+                    echo 'Restarting containers on EC2 with latest images...'
                     dir('terraform') {
                         withCredentials([
                             string(credentialsId: 'aws-access-key-id', variable: 'AWS_ACCESS_KEY_ID'),
@@ -286,7 +286,7 @@ pipeline {
                                     --parameters 'commands=["cd /opt/community-events","sudo docker-compose pull","sudo docker-compose up -d","sleep 10","sudo docker-compose ps"]' \
                                     --output text || echo "SSM command failed - instance may not be ready yet"
                                     
-                                echo "✅ Deployment initiated!"
+                                echo "Deployment initiated!"
                             '''
                         }
                     }
@@ -297,11 +297,11 @@ pipeline {
         stage('Get Deployment Info') {
             steps {
                 script {
-                    echo '📡 Fetching deployment information...'
+                    echo 'Fetching deployment information...'
                     dir('terraform') {
                         sh '''
                             echo "========================================="
-                            echo "🌐 Application URLs:"
+                            echo "Application URLs:"
                             
                             # Check if jq is available
                             if command -v jq &> /dev/null; then
@@ -332,16 +332,16 @@ pipeline {
     
     post {
         success {
-            echo '✅ DEPLOYMENT PIPELINE COMPLETED SUCCESSFULLY!'
-            echo "🎉 Frontend image pushed: ${DOCKER_HUB_USERNAME}/${FRONTEND_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
-            echo "🎉 Backend image pushed: ${DOCKER_HUB_USERNAME}/${BACKEND_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
-            echo "🚀 Application deployed to AWS!"
+            echo 'DEPLOYMENT PIPELINE COMPLETED SUCCESSFULLY!'
+            echo "Frontend image pushed: ${DOCKER_HUB_USERNAME}/${FRONTEND_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
+            echo "Backend image pushed: ${DOCKER_HUB_USERNAME}/${BACKEND_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
+            echo "Application deployed to AWS!"
         }
         failure {
-            echo '❌ Pipeline failed! Check logs for details.'
+            echo 'Pipeline failed! Check logs for details.'
         }
         always {
-            echo '🏁 Pipeline finished.'
+            echo 'Pipeline finished.'
         }
     }
 }
