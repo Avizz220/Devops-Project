@@ -211,45 +211,82 @@ pipeline {
                 script {
                     echo 'Deploying to production server: 35.175.125.161...'
                     
-                    withCredentials([sshUserPrivateKey(credentialsId: 'aws-ec2-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
+                    withCredentials([
+                        string(credentialsId: 'aws-access-key-id', variable: 'AWS_ACCESS_KEY_ID'),
+                        string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
+                    ]) {
                         sh '''
                             set -e
                             
-                            # Production server details
-                            SERVER_IP="35.175.125.161"
-                            DEPLOY_DIR="/opt/community-events"
+                            export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                            export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+                            export AWS_DEFAULT_REGION=us-east-1
                             
                             echo "========================================="
-                            echo "🚀 Deploying to: ${SERVER_IP}"
+                            echo "🚀 Deploying to production server..."
                             echo "========================================="
                             
-                            # Set proper permissions for SSH key
-                            chmod 600 ${SSH_KEY}
+                            # Find the instance ID by private IP or tag
+                            INSTANCE_ID=$(aws ec2 describe-instances \
+                                --filters "Name=ip-address,Values=35.175.125.161" "Name=instance-state-name,Values=running" \
+                                --query "Reservations[0].Instances[0].InstanceId" \
+                                --output text 2>/dev/null || echo "")
                             
-                            # SSH and deploy
-                            ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${SSH_USER}@${SERVER_IP} << 'ENDSSH'
-                                set -e
-                                cd /opt/community-events
-                                
-                                echo "📥 Pulling latest Docker images..."
-                                sudo docker-compose pull
-                                
-                                echo "🔄 Restarting containers..."
-                                sudo docker-compose up -d
-                                
-                                echo "⏳ Waiting for containers to start..."
-                                sleep 10
-                                
-                                echo "✅ Container status:"
-                                sudo docker-compose ps
-                                
-                                echo "========================================="
-                                echo "✅ Deployment complete!"
-                                echo "🌐 Application URL: http://35.175.125.161"
-                                echo "========================================="
-ENDSSH
+                            if [ -z "$INSTANCE_ID" ] || [ "$INSTANCE_ID" = "None" ]; then
+                                echo "Could not find instance with IP 35.175.125.161"
+                                echo "Trying to find by name tag..."
+                                INSTANCE_ID=$(aws ec2 describe-instances \
+                                    --filters "Name=tag:Name,Values=*community*" "Name=instance-state-name,Values=running" \
+                                    --query "Reservations[0].Instances[0].InstanceId" \
+                                    --output text 2>/dev/null || echo "")
+                            fi
                             
-                            echo "✅ Successfully deployed to production!"
+                            if [ -z "$INSTANCE_ID" ] || [ "$INSTANCE_ID" = "None" ]; then
+                                echo "ERROR: Could not find the production instance!"
+                                echo "Please manually provide the instance ID"
+                                exit 1
+                            fi
+                            
+                            echo "Found instance: $INSTANCE_ID"
+                            echo "Sending deployment command via AWS SSM..."
+                            
+                            # Send command via AWS Systems Manager
+                            COMMAND_ID=$(aws ssm send-command \
+                                --instance-ids "$INSTANCE_ID" \
+                                --document-name "AWS-RunShellScript" \
+                                --comment "Deploy latest Docker images from Jenkins" \
+                                --parameters 'commands=[
+                                    "cd /opt/community-events",
+                                    "echo Pulling latest images...",
+                                    "sudo docker-compose pull",
+                                    "echo Restarting containers...",
+                                    "sudo docker-compose up -d",
+                                    "sleep 10",
+                                    "echo Container status:",
+                                    "sudo docker-compose ps",
+                                    "echo Deployment complete!"
+                                ]' \
+                                --output text \
+                                --query "Command.CommandId" || {
+                                    echo "Failed to send command. Check if SSM agent is running on the instance."
+                                    exit 1
+                                })
+                            
+                            echo "Command sent! Command ID: $COMMAND_ID"
+                            echo "Waiting for command to complete..."
+                            sleep 15
+                            
+                            # Check command status
+                            aws ssm get-command-invocation \
+                                --command-id "$COMMAND_ID" \
+                                --instance-id "$INSTANCE_ID" \
+                                --output text \
+                                --query 'StandardOutputContent' || echo "Output not available yet"
+                            
+                            echo "========================================="
+                            echo "✅ Deployment command sent successfully!"
+                            echo "🌐 Application URL: http://35.175.125.161"
+                            echo "========================================="
                         '''
                     }
                 }
