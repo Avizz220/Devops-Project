@@ -211,21 +211,23 @@ pipeline {
                 script {
                     echo 'Deploying to production server: 35.175.125.161...'
                     
-                    sshagent(['aws-ec2-ssh-key']) {
+                    withCredentials([sshUserPrivateKey(credentialsId: 'aws-ec2-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
                         sh '''
                             set -e
                             
                             # Production server details
                             SERVER_IP="35.175.125.161"
-                            SERVER_USER="ubuntu"
                             DEPLOY_DIR="/opt/community-events"
                             
                             echo "========================================="
                             echo "🚀 Deploying to: ${SERVER_IP}"
                             echo "========================================="
                             
+                            # Set proper permissions for SSH key
+                            chmod 600 ${SSH_KEY}
+                            
                             # SSH and deploy
-                            ssh -o StrictHostKeyChecking=no ${SERVER_USER}@${SERVER_IP} << 'ENDSSH'
+                            ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${SSH_USER}@${SERVER_IP} << 'ENDSSH'
                                 set -e
                                 cd /opt/community-events
                                 
