@@ -145,7 +145,7 @@ const Login = () => {
         );
       })}
       <div className="login-container">
-        <h2 className="login-title">Back!</h2>
+        <h2 className="login-title">Welcome Back!</h2>
         <form className="login-form" onSubmit={handleLogin}>
           <div className="input-group">
             <label>Email</label>
@@ -158,7 +158,7 @@ const Login = () => {
             />
           </div>
           <div className="input-group">
-            <label>Passw</label>
+            <label>Password</label>
             <div className="password-wrapper">
               <input
                 type={showPassword ? 'text' : 'password'}
