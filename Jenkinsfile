@@ -12,7 +12,7 @@ pipeline {
         DOCKER_IMAGE_TAG = "${BUILD_NUMBER}"
         DOCKER_CREDENTIALS_ID = 'docker-hub-credentials'
         AWS_DEFAULT_REGION = 'us-east-1'
-        // Enable Terraform plugin caching to speed up init
+       
         TF_PLUGIN_CACHE_DIR = "${HOME}/.terraform.d/plugin-cache"
     }
     
@@ -154,19 +154,19 @@ pipeline {
                 script {
                     echo 'Initializing Terraform...'
                     dir('terraform') {
-                        // Configure Terraform plugin cache via CLI config
+                     
                         sh '''
                             echo "plugin_cache_dir   = \\"$HOME/.terraform.d/plugin-cache\\"" > $HOME/.terraformrc
                             mkdir -p $HOME/.terraform.d/plugin-cache
                         '''
                         
-                        // Check Terraform installation
+                      
                         sh 'terraform version'
                         
-                        // Clean up any existing state locks checks (optional)
+                        
                         sh 'rm -f .terraform/terraform.tfstate || true'
                         
-                        // Initialize with AWS credentials
+                        
                         withCredentials([
                             string(credentialsId: 'aws-access-key-id', variable: 'AWS_ACCESS_KEY_ID'),
                             string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
@@ -203,8 +203,7 @@ pipeline {
             }
         }
         
-        // Terraform stages disabled - deploying directly to existing server
-        // To re-enable infrastructure changes, uncomment Terraform Plan and Apply stages
+       
         
         stage('Deploy to Production Server') {
             steps {
@@ -223,7 +222,7 @@ pipeline {
                             export AWS_DEFAULT_REGION=us-east-1
                             
                             echo "========================================="
-                            echo "🚀 Deploying to production server..."
+                            echo "Deploying to production server..."
                             echo "========================================="
                             
                             # Find the instance ID by private IP or tag
@@ -289,8 +288,8 @@ pipeline {
                                 --query 'StandardOutputContent' || echo "Output not available yet"
                             
                             echo "========================================="
-                            echo "✅ Deployment command sent successfully!"
-                            echo "🌐 Application URL: http://35.175.125.161"
+                            echo "Deployment command sent successfully!"
+                            echo "Application URL: http://35.175.125.161"
                             echo "========================================="
                         '''
                     }
@@ -303,11 +302,11 @@ pipeline {
                 script {
                     echo '''
                         =========================================
-                        ✅ DEPLOYMENT COMPLETE
+                        DEPLOYMENT COMPLETE
                         =========================================
-                        🌐 Frontend: http://35.175.125.161
-                        🔌 Backend API: http://35.175.125.161:4000/api
-                        📦 Containers: MySQL, Backend, Frontend
+                        Frontend: http://35.175.125.161
+                        Backend API: http://35.175.125.161:4000/api
+                        Containers: MySQL, Backend, Frontend
                         =========================================
                         Your changes are now live!
                         =========================================
