@@ -208,7 +208,7 @@ pipeline {
         stage('Deploy to Production Server') {
             steps {
                 script {
-                    echo 'Deploying to production server: 35.175.125.161...'
+                    echo 'Deploying to production server...'
                     
                     withCredentials([
                         string(credentialsId: 'aws-access-key-id', variable: 'AWS_ACCESS_KEY_ID'),
@@ -225,24 +225,15 @@ pipeline {
                             echo "Deploying to production server..."
                             echo "========================================="
                             
-                            # Find the instance ID by private IP or tag
+                            echo "Trying to find instance by name tag..."
                             INSTANCE_ID=$(aws ec2 describe-instances \
-                                --filters "Name=ip-address,Values=35.175.125.161" "Name=instance-state-name,Values=running" \
+                                --filters "Name=tag:Name,Values=*community*" "Name=instance-state-name,Values=running" \
                                 --query "Reservations[0].Instances[0].InstanceId" \
                                 --output text 2>/dev/null || echo "")
-                            
-                            if [ -z "$INSTANCE_ID" ] || [ "$INSTANCE_ID" = "None" ]; then
-                                echo "Could not find instance with IP 35.175.125.161"
-                                echo "Trying to find by name tag..."
-                                INSTANCE_ID=$(aws ec2 describe-instances \
-                                    --filters "Name=tag:Name,Values=*community*" "Name=instance-state-name,Values=running" \
-                                    --query "Reservations[0].Instances[0].InstanceId" \
-                                    --output text 2>/dev/null || echo "")
-                            fi
-                            
+                                
                             if [ -z "$INSTANCE_ID" ] || [ "$INSTANCE_ID" = "None" ]; then
                                 echo "ERROR: Could not find the production instance!"
-                                echo "Please manually provide the instance ID"
+                                echo "Please ensure your instance is running and has a tag Name containing community"
                                 exit 1
                             fi
                             
@@ -258,7 +249,8 @@ pipeline {
                                     "cd /opt/community-events",
                                     "echo Stopping containers...",
                                     "sudo docker-compose down",
-                                    "echo Removing old images...",
+                                    "echo Removing old images and pruning space...",
+                                    "sudo docker system prune -af --volumes",
                                     "sudo docker rmi avishka2002/community-events-frontend:latest || true",
                                     "sudo docker rmi avishka2002/community-events-backend:latest || true",
                                     "echo Pulling latest images...",
@@ -286,11 +278,16 @@ pipeline {
                                 --instance-id "$INSTANCE_ID" \
                                 --output text \
                                 --query 'StandardOutputContent' || echo "Output not available yet"
+                                
+                            INSTANCE_IP=$(aws ec2 describe-instances --instance-ids "$INSTANCE_ID" --query "Reservations[0].Instances[0].PublicIpAddress" --output text)
                             
                             echo "========================================="
                             echo "Deployment command sent successfully!"
-                            echo "Application URL: http://35.175.125.161"
+                            echo "Application URL: http://$INSTANCE_IP"
                             echo "========================================="
+                            
+                            # Write the dynamic IP to a file so later stages can use it
+                            echo "$INSTANCE_IP" > instance_ip.txt
                         '''
                     }
                 }
@@ -300,17 +297,18 @@ pipeline {
         stage('Deployment Summary') {
             steps {
                 script {
-                    echo '''
+                    def instanceIp = readFile('instance_ip.txt').trim()
+                    echo """
                         =========================================
                         DEPLOYMENT COMPLETE
                         =========================================
-                        Frontend: http://35.175.125.161
-                        Backend API: http://35.175.125.161:4000/api
+                        Frontend: http://${instanceIp}
+                        Backend API: http://${instanceIp}:4000/api
                         Containers: MySQL, Backend, Frontend
                         =========================================
                         Your changes are now live!
                         =========================================
-                    '''
+                    """
                 }
             }
         }
@@ -318,10 +316,13 @@ pipeline {
     
     post {
         success {
-            echo 'DEPLOYMENT PIPELINE COMPLETED SUCCESSFULLY!'
-            echo "Frontend image pushed: ${DOCKER_HUB_USERNAME}/${FRONTEND_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
-            echo "Backend image pushed: ${DOCKER_HUB_USERNAME}/${BACKEND_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
-            echo "Application deployed to: http://35.175.125.161"
+            script {
+                def instanceIp = readFile('instance_ip.txt').trim()
+                echo 'DEPLOYMENT PIPELINE COMPLETED SUCCESSFULLY!'
+                echo "Frontend image pushed: ${DOCKER_HUB_USERNAME}/${FRONTEND_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
+                echo "Backend image pushed: ${DOCKER_HUB_USERNAME}/${BACKEND_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
+                echo "Application deployed to: http://${instanceIp}"
+            }
         }
         failure {
             echo 'Pipeline failed! Check logs for details.'
