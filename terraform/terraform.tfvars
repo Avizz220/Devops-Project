@@ -1,7 +1,7 @@
 aws_region = "us-east-1"
 environment = "prod"
 project_name = "community-events"
-key_name = "community-events-key-prod"
+key_name = ""
 instance_type = "t2.micro"
 dockerhub_username = "avishka2002"
 db_name = "community_events"
