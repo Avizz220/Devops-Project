@@ -31,7 +31,11 @@ async function initDB() {
   }
 
   try {
-    await connection.query(`CREATE DATABASE IF NOT EXISTS \`${config.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
+    try {
+      await connection.query(`CREATE DATABASE IF NOT EXISTS \`${config.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
+    } catch (e) {
+      console.log('⚠️ Could not create database (might already exist or lack privileges). Proceeding...');
+    }
     await connection.query(`USE \`${config.database}\`;`);
     console.log('✅ Database selected:', config.database);
 

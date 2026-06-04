@@ -196,7 +196,8 @@ pipeline {
                                 terraform init
                                 
                                 echo "Applying Terraform (Creating Infrastructure)..."
-                                terraform apply -auto-approve
+                                # Replace the EC2 instance to ensure new user-data and MySQL are applied
+                                terraform apply -replace="module.ec2.aws_instance.app[0]" -auto-approve || terraform apply -auto-approve
                                 
                                 echo "Terraform applied successfully"
                             '''

@@ -19,6 +19,24 @@ cat <<EOF > docker-compose.yml
 version: '3.8'
 
 services:
+  mysql:
+    image: mysql:8.0
+    container_name: community_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${db_password}
+      MYSQL_DATABASE: ${db_name}
+      MYSQL_USER: ${db_user}
+      MYSQL_PASSWORD: ${db_password}
+    ports:
+      - "3306:3306"
+    networks:
+      - community-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${db_user}", "-p${db_password}"]
+      timeout: 20s
+      retries: 10
+      
   backend:
     image: ${dockerhub_username}/community-events-backend:${backend_image_tag}
     container_name: community_backend
@@ -33,6 +51,11 @@ services:
       NODE_ENV: production
     ports:
       - "${backend_port}:${backend_port}"
+    volumes:
+      - backend_uploads:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
     networks:
       - community-network
 
@@ -48,6 +71,10 @@ services:
 networks:
   community-network:
     driver: bridge
+
+volumes:
+  backend_uploads:
+    driver: local
 EOF
 
 # Pull and start services
