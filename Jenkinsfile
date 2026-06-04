@@ -189,13 +189,16 @@ pipeline {
                                 
                                 export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
                                 export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-                                export AWS_DEFAULT_REGION=us-west-2
+                                export AWS_DEFAULT_REGION=us-east-1
                                 
                                 echo "Initializing Terraform..."
                                 # Use standard init (uses cache, respects lock file)
                                 terraform init
                                 
-                                echo "Terraform initialized successfully"
+                                echo "Applying Terraform (Creating Infrastructure)..."
+                                terraform apply -auto-approve
+                                
+                                echo "Terraform applied successfully"
                             '''
                         }
                     }
@@ -226,16 +229,36 @@ pipeline {
                             echo "========================================="
                             
                             echo "Trying to find instance by name tag..."
-                            INSTANCE_ID=$(aws ec2 describe-instances \
-                                --filters "Name=tag:Name,Values=*community*" "Name=instance-state-name,Values=running" \
-                                --query "Reservations[0].Instances[0].InstanceId" \
-                                --output text 2>/dev/null || echo "")
+                            
+                            # Add a loop to wait for the instance to be running
+                            MAX_RETRIES=10
+                            RETRY_COUNT=0
+                            INSTANCE_ID=""
+                            
+                            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+                                INSTANCE_ID=$(aws ec2 describe-instances \
+                                    --filters "Name=tag:Name,Values=*community*" "Name=instance-state-name,Values=running" \
+                                    --query "Reservations[0].Instances[0].InstanceId" \
+                                    --output text 2>/dev/null || echo "")
+                                    
+                                if [ -n "$INSTANCE_ID" ] && [ "$INSTANCE_ID" != "None" ]; then
+                                    echo "Found running instance: $INSTANCE_ID"
+                                    break
+                                fi
                                 
+                                echo "Instance not found or not in running state yet. Waiting 15 seconds... (Attempt $((RETRY_COUNT+1))/$MAX_RETRIES)"
+                                sleep 15
+                                RETRY_COUNT=$((RETRY_COUNT+1))
+                            done
+                            
                             if [ -z "$INSTANCE_ID" ] || [ "$INSTANCE_ID" = "None" ]; then
                                 echo "ERROR: Could not find the production instance!"
                                 echo "Please ensure your instance is running and has a tag Name containing community"
                                 exit 1
                             fi
+                            
+                            echo "Waiting for SSM Agent to come online..."
+                            sleep 30
                             
                             echo "Found instance: $INSTANCE_ID"
                             echo "Sending deployment command via AWS SSM..."
