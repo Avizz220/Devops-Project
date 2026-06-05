@@ -7,7 +7,7 @@ import { useAuth } from '../../App';
 
 const sliderImages = [
   '/images/backgrounds/bg1.jpg',
-  '/images/backgrounds/bg2.jpg', 
+  '/images/backgrounds/bg2.jpg',
   '/images/backgrounds/bg3.jpg',
   '/images/backgrounds/bg4.jpg',
 ];
@@ -21,7 +21,7 @@ const onlineFallbacks = [
 
 const fallbackBackgrounds = [
   'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-  'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', 
+  'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
   'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
   'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
 ];
@@ -84,7 +84,7 @@ const Login = () => {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.error || 'Login failed');
       }
@@ -123,7 +123,7 @@ const Login = () => {
       {sliderImages.map((img, idx) => {
         const isActive = idx === bgIndex;
         const loadedImage = imageLoaded[idx];
-        
+
         let backgroundStyle;
         if (loadedImage && loadedImage !== false) {
 
@@ -132,23 +132,23 @@ const Login = () => {
 
           backgroundStyle = { background: fallbackBackgrounds[idx] };
         }
-        
+
         return (
           <div
             key={`login-slide-${idx}`}
             className={`bg-slide ${isActive ? 'active' : ''}`}
-            style={{ 
-              ...backgroundStyle, 
-              zIndex: isActive ? 1 : 0 
+            style={{
+              ...backgroundStyle,
+              zIndex: isActive ? 1 : 0
             }}
           />
         );
       })}
       <div className="login-container">
-        <h2 className="login-title">Good Morning!</h2>
+        <h2 className="login-title">Good Evening</h2>
         <form className="login-form" onSubmit={handleLogin}>
           <div className="input-group">
-            <label>Email</label>
+            <label>Your Email</label>
             <input
               type="email"
               value={email}
@@ -176,16 +176,16 @@ const Login = () => {
               </span>
             </div>
           </div>
-          <button 
-            className="login-btn" 
-            type="submit" 
+          <button
+            className="login-btn"
+            type="submit"
             disabled={isLoading}
           >
             {isLoading ? 'Logging in...' : 'Login'}
           </button>
           <div className="login-footer">
             <span>Don't have an account?</span>
-            <a href="/signup">Sign Up</a>
+            <a href="/signup">Up</a>
           </div>
         </form>
       </div>
