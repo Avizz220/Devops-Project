@@ -274,7 +274,7 @@ pipeline {
                                     "echo Stopping containers...",
                                     "sudo docker-compose down",
                                     "echo Removing old images and pruning space...",
-                                    "sudo docker system prune -af --volumes",
+                                    "sudo docker system prune -af",
                                     "sudo docker rmi avishka2002/community-events-frontend:latest || true",
                                     "sudo docker rmi avishka2002/community-events-backend:latest || true",
                                     "echo Pulling latest images...",
